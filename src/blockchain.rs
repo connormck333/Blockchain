@@ -54,10 +54,6 @@ impl Blockchain {
         self.chain.last().unwrap()
     }
 
-    pub fn get_difficulty(&self) -> usize {
-        self.difficulty
-    }
-
     pub fn add_transaction_to_mempool(&mut self, transaction: Transaction) {
         self.mempool.push(transaction);
     }
@@ -222,12 +218,6 @@ mod tests {
     }
 
     #[test]
-    fn test_get_difficulty() {
-        let blockchain = Blockchain::new(2);
-        assert_eq!(blockchain.get_difficulty(), 2);
-    }
-
-    #[test]
     fn test_add_transaction_to_mempool() {
         let mut blockchain = Blockchain::new(2);
 
@@ -252,12 +242,6 @@ mod tests {
     }
 
     fn create_transaction(id: String) -> Transaction {
-        Transaction {
-            sender: "sender".to_string(),
-            recipient: "recipient".to_string(),
-            amount: 100,
-            signature: "signature".to_string(),
-            id,
-        }
+        Transaction::new("sender".to_string(), "recipient".to_string(), 100)
     }
 }

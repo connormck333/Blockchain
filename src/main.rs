@@ -4,6 +4,7 @@ mod blockchain;
 mod utils;
 mod node;
 mod network;
+mod wallet;
 
 use crate::block::Block;
 use crate::network::Network;
@@ -17,6 +18,12 @@ fn main() {
     network.add_node(Node::new("Node-C", 3));
 
     let mut miner = Node::new("Miner-1", 3);
+
+    let node_a_address = network.nodes[0].wallet.address.clone();
+    let transaction = miner.create_transaction(node_a_address, 100);
+
+    let valid_signature: bool = miner.wallet.verify_signature(&transaction);
+    println!("Signature valid: {}", valid_signature);
 
     let transactions = miner.blockchain.get_mempool().clone();
     let previous_hash = miner.blockchain.get_latest_block().hash.clone();

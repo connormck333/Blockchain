@@ -38,7 +38,6 @@ impl Block {
     pub fn mine(&mut self) {
         loop {
             let hash: String = self.create_hash();
-            println!("hash: {}", hash);
 
             if hash.starts_with(&"0".repeat(self.difficulty)) {
                 self.hash = hash;
