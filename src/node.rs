@@ -16,7 +16,7 @@ impl Node {
 
     pub fn receive_block(&mut self, block: Block) -> bool {
         if self.blockchain.is_valid_new_block(&block) {
-            self.blockchain.chain.push(block);
+            self.blockchain.add_block_to_chain(block.clone());
             println!("{} accepted new block", self.name);
             true
         } else {

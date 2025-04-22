@@ -7,8 +7,9 @@ use crate::transaction::Transaction;
 */
 
 pub struct Blockchain {
-    pub chain: Vec<Block>,
-    pub difficulty: usize
+    chain: Vec<Block>,
+    mempool: Vec<Transaction>,
+    difficulty: usize,
 }
 
 impl Blockchain {
@@ -16,6 +17,7 @@ impl Blockchain {
         let genesis_block = Self::create_genesis_block(difficulty);
         Self {
             chain: vec![genesis_block],
+            mempool: vec![],
             difficulty
         }
     }
@@ -38,6 +40,21 @@ impl Blockchain {
         new_block.hash.starts_with(&"0".repeat(self.difficulty))
     }
 
+    pub fn add_block_to_chain(&mut self, new_block: Block) {
+        for transaction in new_block.transactions.iter() {
+            let index = self.mempool.iter().position(|t| t.id == transaction.id);
+
+            match index {
+                Some(i) => {
+                    self.mempool.remove(i);
+                },
+                None => {}
+            }
+        }
+
+        self.chain.push(new_block);
+    }
+
     pub fn get_chain(&self) -> &Vec<Block> {
         &self.chain
     }
@@ -48,6 +65,14 @@ impl Blockchain {
 
     pub fn get_difficulty(&self) -> usize {
         self.difficulty
+    }
+
+    pub fn add_transaction_to_mempool(&mut self, transaction: Transaction) {
+        self.mempool.push(transaction);
+    }
+
+    pub fn get_mempool(&self) -> &Vec<Transaction> {
+        &self.mempool
     }
 
     fn create_genesis_block(difficulty: usize) -> Block {
