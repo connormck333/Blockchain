@@ -55,3 +55,31 @@ impl Block {
         calculate_hash(serialized)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_constructor() {
+        let new_block = Block::new(0, "previousBlockHash".to_string(), vec![], 0);
+
+        assert_eq!(new_block.difficulty, 0);
+        assert!(new_block.transactions.is_empty());
+        assert_eq!(new_block.index, 0);
+        assert_eq!(new_block.previous_block_hash, "previousBlockHash".to_string());
+        assert_eq!(new_block.hash, "");
+        assert_eq!(new_block.nonce, 0);
+    }
+
+    #[test]
+    fn test_mine() {
+        let mut new_block = Block::new(0, "previousBlockHash".to_string(), vec![], 3);
+
+        new_block.mine();
+
+        assert_eq!(new_block.hash, new_block.create_hash());
+        assert!(new_block.hash.starts_with(&"0".repeat(2)));
+        assert!(new_block.nonce > 0);
+    }
+}
