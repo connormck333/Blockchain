@@ -5,6 +5,7 @@ use secp256k1::rand::thread_rng;
 use sha2::{Sha256, Digest as ShaDigest};
 use crate::transaction::Transaction;
 
+#[derive(Clone)]
 pub struct Wallet {
     private_key: SecretKey,
     pub public_key: PublicKey,

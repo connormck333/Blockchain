@@ -1,37 +1,48 @@
 use eframe::egui;
+use crate::node::Node;
+use crate::simulator::add_node_modal::AddNodeModal;
 
-pub struct Sidebar;
+pub struct Sidebar {
+    modal_visible: bool,
+    add_node_modal: AddNodeModal
+}
 
 impl Default for Sidebar {
     fn default() -> Self {
-        Self {}
+        Self {
+            modal_visible: false,
+            add_node_modal: AddNodeModal::new()
+        }
     }
 }
 
 impl Sidebar {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub fn show(&mut self, ctx: &egui::Context, nodes: &mut Vec<Node>, selected_node: &mut Option<Node>) {
         egui::SidePanel::left("left_panel")
             .resizable(false)
             .default_width(150.0)
             .show(ctx, |ui| {
                 ui.vertical(|ui|{
-                    ui.heading("Menu");
+                    ui.heading("Nodes");
                     ui.separator();
 
-                    if ui.button("Mine block").clicked() {
-                        println!("Mine block clicked");
+                    for node in nodes.iter() {
+                        if ui.button(&node.name).clicked() {
+                            *selected_node = Some(node.clone());
+                        }
+                        ui.add_space(5.0);
                     }
 
-                    ui.add_space(5.0);
-
-                    if ui.button("Transfer money").clicked() {
-                        println!("Transfer money clicked");
-                    }
-
-                    let margin_top = ui.available_height() - 25.0;
+                    let margin_top = ui.available_height() - 30.0;
                     ui.add_space(margin_top);
 
-                    ui.label("Balance: $100.00")
+                    if ui.button("Add Node").clicked() {
+                        self.modal_visible = true;
+                    }
+
+                    if self.modal_visible {
+                        self.add_node_modal.show(ctx, nodes, &mut self.modal_visible);
+                    }
                 });
             });
     }

@@ -3,6 +3,7 @@ use crate::blockchain::Blockchain;
 use crate::transaction::Transaction;
 use crate::wallet::Wallet;
 
+#[derive(Clone)]
 pub struct Node {
     pub name: String,
     pub blockchain: Blockchain,

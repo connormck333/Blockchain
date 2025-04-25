@@ -6,6 +6,7 @@ use crate::transaction::Transaction;
     and the tracking of assets within a business network and providing a single source of truth.
 */
 
+#[derive(Clone)]
 pub struct Blockchain {
     chain: Vec<Block>,
     mempool: Vec<Transaction>,
