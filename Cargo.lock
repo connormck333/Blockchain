@@ -9,6 +9,7 @@ dependencies = [
  "chrono",
  "eframe",
  "hex",
+ "log",
  "rand 0.9.0",
  "ripemd",
  "secp256k1",

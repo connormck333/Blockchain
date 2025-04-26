@@ -1,5 +1,4 @@
 use eframe::egui;
-use eframe::egui::TextBuffer;
 use crate::simulator::log::Log;
 
 pub struct LogPanel {

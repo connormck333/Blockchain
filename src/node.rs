@@ -7,7 +7,8 @@ use crate::wallet::Wallet;
 pub struct Node {
     pub name: String,
     pub blockchain: Blockchain,
-    pub wallet: Wallet
+    pub wallet: Wallet,
+    pub mempool: Vec<Transaction>
 }
 
 impl Node {
@@ -15,7 +16,8 @@ impl Node {
         Self {
             name: name.to_string(),
             blockchain: Blockchain::new(difficulty),
-            wallet: Wallet::new()
+            wallet: Wallet::new(),
+            mempool: Vec::new()
         }
     }
 
@@ -34,8 +36,20 @@ impl Node {
         let mut transaction = Transaction::new(self.wallet.get_public_key(), recipient, amount);
         transaction.signature = Some(self.wallet.create_signature(&transaction));
 
-        self.blockchain.add_transaction_to_mempool(transaction.clone());
+        self.mempool.push(transaction.clone());
 
         transaction
+    }
+
+    pub fn mine_block(&mut self) -> Block {
+        let previous_hash = self.blockchain.get_latest_block().hash.clone();
+        let mut block = Block::new(self.blockchain.get_chain().len() as u64, previous_hash, self.mempool.clone(), 3);
+
+        self.mempool.clear();
+        block.mine();
+
+        self.blockchain.add_block_to_chain(block.clone());
+
+        block
     }
 }
