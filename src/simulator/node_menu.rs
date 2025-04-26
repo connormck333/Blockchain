@@ -2,27 +2,30 @@ use eframe::egui;
 use crate::block::Block;
 use crate::network::Network;
 use crate::node::Node;
+use crate::simulator::blockchain_menu::BlockchainMenu;
 use crate::simulator::create_transaction_modal::CreateTransactionModal;
 use crate::simulator::log_panel::LogPanel;
 use crate::utils::format_timestamp;
 
 pub struct NodeMenu {
     modal_visible: bool,
-    create_transaction_modal: CreateTransactionModal
+    create_transaction_modal: CreateTransactionModal,
+    blockchain_menu_open: bool
 }
 
 impl Default for NodeMenu {
     fn default() -> Self {
         Self {
             modal_visible: false,
-            create_transaction_modal: CreateTransactionModal::new()
+            create_transaction_modal: CreateTransactionModal::new(),
+            blockchain_menu_open: false
         }
     }
 }
 
 impl NodeMenu {
     pub fn show(&mut self, ctx: &egui::Context, network: &mut Network, node: &mut Node, log_panel: &mut LogPanel) {
-        egui::SidePanel::left("side_panel")
+        egui::SidePanel::left("node_menu")
             .resizable(false)
             .default_width(200.0)
             .show(ctx, |ui| {
@@ -41,8 +44,19 @@ impl NodeMenu {
                     network.broadcast_block(mined_block.clone(), log_panel);
                 }
 
-                let margin_top = ui.available_height() - 30.0;
+                let margin_top = ui.available_height() - 60.0;
                 ui.add_space(margin_top);
+                ui.separator();
+
+                if self.blockchain_menu_open {
+                    if ui.button("Close Blockchain Menu").clicked() {
+                        self.blockchain_menu_open = false;
+                    }
+                } else {
+                    if ui.button("View Blockchain").clicked() {
+                        self.blockchain_menu_open = true;
+                    }
+                }
 
                 ui.label("Balance: $100");
 
@@ -50,6 +64,10 @@ impl NodeMenu {
                     self.create_transaction_modal.show(ctx, node, network.nodes.clone(), &mut self.modal_visible, log_panel);
                 }
             });
+    }
+
+    pub fn is_blockchain_menu_open(&self) -> bool {
+        self.blockchain_menu_open
     }
 
     fn add_mined_block_log(log_panel: &mut LogPanel, mined_block: Block, node_name: String) {

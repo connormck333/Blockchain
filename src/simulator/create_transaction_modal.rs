@@ -21,7 +21,7 @@ impl CreateTransactionModal {
             .resizable(false)
             .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
             .show(ctx, |ui| {
-                ui.label("Select recipient node: ");
+                ui.label("Select recipient node:");
                 ui.add_space(5.0);
                 for node in nodes.iter() {
                     let button = ui.button(node.name.clone());
@@ -35,7 +35,7 @@ impl CreateTransactionModal {
                 }
                 ui.add_space(10.0);
 
-                ui.label("Enter amount: ");
+                ui.label("Enter amount:");
                 ui.add_space(5.0);
                 ui.add(egui::DragValue::new(&mut self.amount).speed(1.0));
 
@@ -43,7 +43,7 @@ impl CreateTransactionModal {
 
                 ui.horizontal(|ui| {
                     if ui.button("Confirm").clicked() {
-                        sender_node.create_transaction(self.recipient_node.as_ref().unwrap().name.clone(), self.amount);
+                        sender_node.create_transaction(self.recipient_node.as_ref().unwrap().wallet.address.clone(), self.amount);
                         self.add_transaction_log(sender_node.name.clone(), log_panel);
                         self.close_modal(visible);
                     }

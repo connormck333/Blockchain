@@ -17,7 +17,12 @@ impl Default for Sidebar {
 }
 
 impl Sidebar {
-    pub fn show(&mut self, ctx: &egui::Context, nodes: &mut Vec<Node>, selected_node: &mut Option<Node>) {
+    pub fn show(
+        &mut self,
+        ctx: &egui::Context,
+        nodes: &mut Vec<Node>,
+        selected_node: &mut Option<Node>
+    ) {
         egui::SidePanel::left("left_panel")
             .resizable(false)
             .default_width(150.0)
