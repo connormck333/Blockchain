@@ -28,6 +28,10 @@ impl CreateTransactionModal {
                 ui.label("Select recipient node:");
                 ui.add_space(5.0);
                 for node in network.nodes.iter() {
+                    if node.id == selected_node_id {
+                        continue;
+                    }
+
                     let button = ui.button(node.name.clone());
                     if button.clicked() {
                         self.recipient_node = Some(node.clone());

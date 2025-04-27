@@ -23,11 +23,10 @@ impl eframe::App for Gui {
         self.sidebar.show(ctx, &mut self.network.nodes, &mut self.selected_node_id);
 
         if self.selected_node_id.is_some() {
-            let mut selected_node = self.network.get_node_by_id(*self.selected_node_id.as_ref().unwrap()).clone();
-
             self.node_menu.show(ctx, &mut self.network, *self.selected_node_id.as_ref().unwrap(), &mut self.log_panel);
 
             if self.node_menu.is_blockchain_menu_open() {
+                let mut selected_node = self.network.get_node_by_id(*self.selected_node_id.as_ref().unwrap()).clone();
                 self.blockchain_menu.show(ctx, selected_node.blockchain);
             }
         }
