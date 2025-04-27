@@ -1,3 +1,4 @@
+use uuid::Uuid;
 use crate::block::Block;
 use crate::blockchain::Blockchain;
 use crate::transaction::Transaction;
@@ -8,7 +9,8 @@ pub struct Node {
     pub name: String,
     pub blockchain: Blockchain,
     pub wallet: Wallet,
-    pub mempool: Vec<Transaction>
+    pub mempool: Vec<Transaction>,
+    pub id: Uuid
 }
 
 impl Node {
@@ -17,7 +19,8 @@ impl Node {
             name: name.to_string(),
             blockchain: Blockchain::new(difficulty),
             wallet: Wallet::new(),
-            mempool: Vec::new()
+            mempool: Vec::new(),
+            id: Uuid::new_v4()
         }
     }
 

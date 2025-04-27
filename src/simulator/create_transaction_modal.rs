@@ -1,4 +1,6 @@
 use eframe::egui;
+use uuid::Uuid;
+use crate::network::Network;
 use crate::node::Node;
 use crate::simulator::log_panel::LogPanel;
 
@@ -15,7 +17,9 @@ impl CreateTransactionModal {
         }
     }
 
-    pub fn show(&mut self, ctx: &egui::Context, sender_node: &mut Node, nodes: Vec<Node>, visible: &mut bool, log_panel: &mut LogPanel) {
+    pub fn show(&mut self, ctx: &egui::Context, network: &mut Network, selected_node_id: Uuid, visible: &mut bool, log_panel: &mut LogPanel) {
+        let node_copy = network.get_node_by_id(selected_node_id).clone();
+
         egui::Window::new("Transaction")
             .collapsible(false)
             .resizable(false)
@@ -23,12 +27,12 @@ impl CreateTransactionModal {
             .show(ctx, |ui| {
                 ui.label("Select recipient node:");
                 ui.add_space(5.0);
-                for node in nodes.iter() {
+                for node in network.nodes.iter() {
                     let button = ui.button(node.name.clone());
                     if button.clicked() {
                         self.recipient_node = Some(node.clone());
                     }
-                    if self.recipient_node.as_ref().map_or(false, |selected| selected.name == node.name) {
+                    if self.recipient_node.as_ref().map_or(false, |selected| selected.id == node.id) {
                         button.highlight();
                     }
                     ui.add_space(3.0);
@@ -43,8 +47,8 @@ impl CreateTransactionModal {
 
                 ui.horizontal(|ui| {
                     if ui.button("Confirm").clicked() {
-                        sender_node.create_transaction(self.recipient_node.as_ref().unwrap().wallet.address.clone(), self.amount);
-                        self.add_transaction_log(sender_node.name.clone(), log_panel);
+                        network.get_node_by_id(selected_node_id).create_transaction(self.recipient_node.as_ref().unwrap().wallet.address.clone(), self.amount);
+                        self.add_transaction_log(node_copy.name.clone(), log_panel);
                         self.close_modal(visible);
                     }
                     ui.add_space(5.0);

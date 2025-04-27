@@ -1,8 +1,7 @@
 use eframe::egui;
+use uuid::Uuid;
 use crate::block::Block;
 use crate::network::Network;
-use crate::node::Node;
-use crate::simulator::blockchain_menu::BlockchainMenu;
 use crate::simulator::create_transaction_modal::CreateTransactionModal;
 use crate::simulator::log_panel::LogPanel;
 use crate::utils::format_timestamp;
@@ -24,12 +23,14 @@ impl Default for NodeMenu {
 }
 
 impl NodeMenu {
-    pub fn show(&mut self, ctx: &egui::Context, network: &mut Network, node: &mut Node, log_panel: &mut LogPanel) {
+    pub fn show(&mut self, ctx: &egui::Context, network: &mut Network, selected_node_id: Uuid, log_panel: &mut LogPanel) {
+        let node_copy = network.get_node_by_id(selected_node_id).clone();
+
         egui::SidePanel::left("node_menu")
             .resizable(false)
             .default_width(200.0)
             .show(ctx, |ui| {
-                ui.heading(node.name.clone());
+                ui.heading(node_copy.name.clone());
                 ui.separator();
 
                 if ui.button("Send Transaction").clicked() {
@@ -39,9 +40,9 @@ impl NodeMenu {
                 ui.add_space(5.0);
 
                 if ui.button("Mine block").clicked() {
-                    let mined_block = node.mine_block();
-                    Self::add_mined_block_log(log_panel, mined_block.clone(), node.name.clone());
-                    network.broadcast_block(mined_block.clone(), log_panel);
+                    let mined_block = network.get_node_by_id(selected_node_id).mine_block();
+                    Self::add_mined_block_log(log_panel, mined_block.clone(), node_copy.name.clone());
+                    network.broadcast_block(mined_block.clone(), node_copy.id.clone(), log_panel);
                 }
 
                 let margin_top = ui.available_height() - 60.0;
@@ -61,7 +62,7 @@ impl NodeMenu {
                 ui.label("Balance: $100");
 
                 if self.modal_visible {
-                    self.create_transaction_modal.show(ctx, node, network.nodes.clone(), &mut self.modal_visible, log_panel);
+                    self.create_transaction_modal.show(ctx, network, selected_node_id, &mut self.modal_visible, log_panel);
                 }
             });
     }

@@ -1,3 +1,4 @@
+use uuid::Uuid;
 use crate::block::Block;
 use crate::node::Node;
 use crate::simulator::log_panel::LogPanel;
@@ -19,9 +20,13 @@ impl Network {
         self.nodes.push(node);
     }
 
-    pub fn broadcast_block(&mut self, block: Block, log_panel: &mut LogPanel) {
+    pub fn broadcast_block(&mut self, block: Block, sender_node: Uuid, log_panel: &mut LogPanel) {
         println!("Broadcasting block to all nodes");
         for node in self.nodes.iter_mut() {
+            if node.id == sender_node {
+                continue;
+            }
+
             let valid_block: bool = node.receive_block(block.clone());
 
             log_panel.add_log(
@@ -30,6 +35,13 @@ impl Network {
                 node.name.clone()
             );
         }
+    }
+
+    pub fn get_node_by_id(&mut self, id: Uuid) -> &mut Node {
+        self.nodes
+            .iter_mut()
+            .find(|n| n.id == id)
+            .unwrap()
     }
 
     fn get_action_message(valid_block: bool) -> String {

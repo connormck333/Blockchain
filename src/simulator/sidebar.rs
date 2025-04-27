@@ -1,4 +1,5 @@
 use eframe::egui;
+use uuid::Uuid;
 use crate::node::Node;
 use crate::simulator::add_node_modal::AddNodeModal;
 
@@ -21,7 +22,7 @@ impl Sidebar {
         &mut self,
         ctx: &egui::Context,
         nodes: &mut Vec<Node>,
-        selected_node: &mut Option<Node>
+        selected_node: &mut Option<Uuid>
     ) {
         egui::SidePanel::left("left_panel")
             .resizable(false)
@@ -33,7 +34,7 @@ impl Sidebar {
 
                     for node in nodes.iter() {
                         if ui.button(&node.name).clicked() {
-                            *selected_node = Some(node.clone());
+                            *selected_node = Some(node.id.clone());
                         }
                         ui.add_space(5.0);
                     }

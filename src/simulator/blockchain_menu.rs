@@ -20,7 +20,7 @@ impl Default for BlockchainMenu {
 }
 
 impl BlockchainMenu {
-    pub fn show(&mut self, ctx: &egui::Context, blockchain: &Blockchain) {
+    pub fn show(&mut self, ctx: &egui::Context, blockchain: Blockchain) {
         egui::SidePanel::left("blockchain_menu")
             .resizable(false)
             .default_width(300.0)
