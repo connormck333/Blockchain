@@ -21,16 +21,17 @@ impl Blockchain {
     }
 
     pub fn is_valid_new_block(&self, new_block: &Block) -> bool {
-        let last_block = self.chain.last().unwrap();
-
-        new_block.previous_block_hash == last_block.hash &&
-        new_block.index == last_block.index + 1 &&
-        new_block.hash.starts_with(&"0".repeat(self.difficulty)) &&
-        new_block.hash == new_block.create_hash()
+        self.validate_block_data(new_block) &&
+            self.validate_block_transactions(new_block)
     }
 
-    pub fn add_block_to_chain(&mut self, new_block: Block) {
+    pub fn add_block_to_chain(&mut self, new_block: Block) -> bool {
+        if !self.is_valid_new_block(&new_block) {
+            return false;
+        }
+
         self.chain.push(new_block);
+        true
     }
 
     pub fn get_chain(&self) -> &Vec<Block> {
@@ -39,6 +40,44 @@ impl Blockchain {
 
     pub fn get_latest_block(&self) -> &Block {
         self.chain.last().unwrap()
+    }
+
+    fn validate_block_data(&self, new_block: &Block) -> bool {
+        let last_block = self.chain.last().unwrap();
+
+        new_block.previous_block_hash == last_block.hash &&
+            new_block.index == last_block.index + 1 &&
+            new_block.hash.starts_with(&"0".repeat(self.difficulty)) &&
+            new_block.hash == new_block.create_hash()
+    }
+
+    fn validate_block_transactions(&self, block: &Block) -> bool {
+        for transaction in &block.transactions {
+            let sender = transaction.sender.clone();
+            let sender_funds: i64 = self.get_user_funds(sender);
+            let remaining_funds: i64 = sender_funds - transaction.amount as i64;
+
+            if remaining_funds < 0 {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    fn get_user_funds(&self, user_address: String) -> i64 {
+        let mut funds: i64 = 0;
+        for block in &self.chain {
+            for transaction in &block.transactions {
+                if transaction.sender == user_address {
+                    funds -= transaction.amount as i64;
+                } else if transaction.recipient == user_address {
+                    funds += transaction.amount as i64;
+                }
+            }
+        }
+
+        funds
     }
 
     fn create_genesis_block(difficulty: usize) -> Block {
@@ -158,9 +197,5 @@ mod tests {
         let latest_block = blockchain.get_latest_block();
 
         assert_eq!(latest_block.index, new_block.index);
-    }
-
-    fn create_transaction(id: String) -> Transaction {
-        Transaction::new("sender".to_string(), "recipient".to_string(), 100)
     }
 }

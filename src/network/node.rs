@@ -25,8 +25,7 @@ impl Node {
     }
 
     pub fn receive_block(&mut self, block: Block) -> bool {
-        if self.blockchain.is_valid_new_block(&block) {
-            self.blockchain.add_block_to_chain(block.clone());
+        if self.blockchain.add_block_to_chain(block.clone()) {
             println!("{} accepted new block", self.name);
             true
         } else {
@@ -44,7 +43,7 @@ impl Node {
         transaction
     }
 
-    pub fn mine_block(&mut self) -> Block {
+    pub fn mine_block(&mut self) -> Option<Block> {
         let previous_hash = self.blockchain.get_latest_block().hash.clone();
         let mut block = Block::new(self.blockchain.get_chain().len() as u64, previous_hash, self.mempool.clone(), 3);
 
@@ -53,6 +52,6 @@ impl Node {
 
         self.blockchain.add_block_to_chain(block.clone());
 
-        block
+        Some(block)
     }
 }
