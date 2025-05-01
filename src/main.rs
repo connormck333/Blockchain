@@ -1,4 +1,6 @@
-use libp2p::{noise, ping, tcp, yamux};
+use libp2p::{noise, ping, tcp, yamux, Multiaddr};
+use libp2p::futures::StreamExt;
+use libp2p::swarm::SwarmEvent;
 use tracing_subscriber::EnvFilter;
 
 
@@ -25,5 +27,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_behaviour(|_| ping::Behaviour::default())?
         .build();
 
-    Ok(())
+    swarm.listen_on("/ip4/0.0.0.0/tcp/0".parse()?)?;
+
+    if let Some(addr) = std::env::args().nth(1) {
+        let remote: Multiaddr = addr.parse()?;
+        swarm.dial(remote)?;
+    }
+
+    loop {
+        match swarm.select_next_some().await {
+            SwarmEvent::NewListenAddr { address, .. } => println!("Listening on {:?}", address),
+            SwarmEvent::Behaviour(event) => println!("{:?}", event),
+            _ => {}
+        }
+    }
 }

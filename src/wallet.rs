@@ -42,7 +42,7 @@ impl Wallet {
         let tx_hash = transaction.hash();
         let message = Message::from_digest(tx_hash);
 
-        secp.sign_ecdsa(&message, &self.private_key)
+        secp.sign_ecdsa(message, &self.private_key)
     }
 
     pub fn verify_signature(&self, transaction: &Transaction) -> bool {
@@ -50,7 +50,7 @@ impl Wallet {
         let tx_hash = transaction.hash();
         let message = Message::from_digest(tx_hash);
 
-        secp.verify_ecdsa(&message, &transaction.signature.unwrap(), &self.public_key).is_ok()
+        secp.verify_ecdsa(message, &transaction.signature.unwrap(), &self.public_key).is_ok()
     }
 
     pub fn get_public_key(&self) -> String {
