@@ -1,7 +1,7 @@
 use clap::{Parser};
 use crate::network::command::Command;
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Clone)]
 pub struct Args {
     #[clap(short, long)]
     pub name: Option<String>,

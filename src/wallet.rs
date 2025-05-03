@@ -1,7 +1,7 @@
 use ripemd::{Ripemd160, Digest};
 use secp256k1::{Message, Secp256k1, SecretKey, PublicKey};
 use secp256k1::ecdsa::Signature;
-use secp256k1::rand::thread_rng;
+use secp256k1::rand::rng;
 use sha2::{Sha256, Digest as ShaDigest};
 use crate::transaction::Transaction;
 
@@ -15,7 +15,7 @@ pub struct Wallet {
 impl Wallet {
     pub fn new() -> Self {
         let secp = Secp256k1::new();
-        let (private_key, public_key) = Secp256k1::generate_keypair(&secp, &mut thread_rng());
+        let (private_key, public_key) = Secp256k1::generate_keypair(&secp, &mut rng());
         let address = Self::create_address_hash(&public_key);
 
         Wallet {
