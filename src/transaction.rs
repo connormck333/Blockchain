@@ -5,7 +5,7 @@ use serde_json::to_string;
 use sha2::{Digest, Sha256};
 use crate::utils::calculate_hash;
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Transaction {
     pub sender: String,
     pub recipient: String,

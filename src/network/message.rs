@@ -1,11 +1,13 @@
 use anyhow::Result;
 use iroh::NodeId;
 use serde::{Deserialize, Serialize};
+use crate::block::Block;
+use crate::transaction::Transaction;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Message {
-    AboutMe { from: NodeId, name: String },
-    Message { from: NodeId, text: String },
+    BlockMined { from: NodeId, block: Block },
+    TransactionCreated { from: NodeId, transaction: Transaction }
 }
 
 impl Message {

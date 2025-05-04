@@ -9,7 +9,7 @@ use crate::utils::calculate_hash;
     that permanently stores transaction data for the network.
 */
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Block {
     pub index: u64,
     pub timestamp: i64,
