@@ -18,7 +18,7 @@ pub struct Block {
     pub nonce: u64,
     pub difficulty: usize,
 
-    #[serde(skip_serializing)]
+    #[serde(skip_serializing, skip_deserializing)]
     pub hash: String
 }
 

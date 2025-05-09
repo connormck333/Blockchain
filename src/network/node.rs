@@ -51,6 +51,7 @@ impl Node {
         block.mine();
 
         self.blockchain.add_block_to_chain(block.clone());
+        println!("Mined block {}", block.index);
 
         Some(block)
     }

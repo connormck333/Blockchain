@@ -25,3 +25,4 @@ data-encoding = "2.9.0"
 anyhow = "1.0.98"
 clap = { version = "4.5.37", features = ["derive"] }
 futures-lite = "2.6.0"
+bytes = "1.10.1"

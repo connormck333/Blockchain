@@ -1,22 +1,23 @@
-use std::collections::HashMap;
 use std::str::FromStr;
+use std::sync::{Arc};
+use tokio::sync::Mutex;
 use futures_lite::StreamExt;
 use iroh::{Endpoint, NodeAddr};
 use iroh::protocol::Router;
-use iroh_gossip::net::{Event, Gossip, GossipEvent, GossipReceiver, GossipSender};
+use iroh_gossip::net::{Event, Gossip, GossipEvent, GossipReceiver};
 use iroh_gossip::proto::TopicId;
 use crate::block::Block;
 use crate::network::command::Command;
 use crate::network::message::Message;
 use crate::network::ticket::Ticket;
 use crate::network::args::Args;
+use crate::network::node::Node;
 
 pub struct Network {
-    nodes: Vec<NodeAddr>,
+    connected_nodes: Vec<NodeAddr>,
     topic_id: TopicId,
     args: Args,
-    sender: Option<GossipSender>,
-    block_tx: Option<tokio::sync::mpsc::Sender<Block>>
+    gossip: Option<Gossip>
 }
 
 impl Network {
@@ -25,23 +26,23 @@ impl Network {
         let (topic_id, nodes) = Self::get_topic_and_nodes(args.clone());
 
         Self {
-            nodes,
+            connected_nodes: nodes,
             topic_id,
             args,
-            sender: None,
-            block_tx: None
+            gossip: None
         }
     }
 
-    pub async fn connect(&mut self) -> anyhow::Result<()> {
+    pub async fn connect(&mut self, node: Arc<Mutex<Node>>) -> anyhow::Result<()> {
         let endpoint = Endpoint::builder().discovery_n0().bind().await?;
+        println!("node id: {}", endpoint.node_id());
 
-        let gossip: Gossip = Gossip::builder()
+        self.gossip = Some(Gossip::builder()
             .spawn(endpoint.clone())
-            .await?;
+            .await?);
 
         let router: Router = Router::builder(endpoint.clone())
-            .accept(iroh_gossip::ALPN, gossip.clone())
+            .accept(iroh_gossip::ALPN, self.gossip.as_ref().unwrap().clone())
             .spawn()
             .await?;
 
@@ -52,62 +53,73 @@ impl Network {
         };
         println!("> Ticket to join us: {ticket}");
 
-        let node_ids = self.nodes.clone().iter().map(|p| p.node_id).collect();
-        if self.nodes.is_empty() {
+        let node_ids = self.connected_nodes.clone().iter().map(|p| p.node_id).collect();
+        if self.connected_nodes.is_empty() {
             println!("> Waiting for nodes to join");
         } else {
-            println!("> Joining nodes: {}", self.nodes.len());
-            for node in self.nodes.clone().into_iter() {
+            println!("> Joining nodes: {}", self.connected_nodes.len());
+            for node in self.connected_nodes.clone().into_iter() {
+                println!("{}", node.clone().node_id);
                 endpoint.add_node_addr(node)?
             }
         }
 
-        let (sender, mut receiver) = gossip.subscribe_and_join(self.topic_id, node_ids).await?.split();
-        self.sender = Some(sender);
+        let (sender, receiver) = self.gossip.as_mut().unwrap().subscribe_and_join(self.topic_id, node_ids).await?.split();
         println!("> Connected");
 
-        tokio::spawn(async move {
-            Self::subscribe_loop(&mut receiver).await
-        });
+        // let (block_tx, mut block_rx) = tokio::sync::mpsc::channel(1);
 
-        let (block_tx, mut block_rx) = tokio::sync::mpsc::channel(1);
-        self.block_tx = Some(block_tx);
+        {
+            let node_clone = node.clone();
+            tokio::spawn(async move {
+                let mined_block: Option<Block> = tokio::task::spawn_blocking(move || {
+                    node_clone.blocking_lock().mine_block()
+                }).await.unwrap();
 
-        while let Some(mined_block) = block_rx.recv().await {
-            let message = Message::BlockMined {
-                from: endpoint.node_id(),
-                block: mined_block.clone()
-            };
-
-            self.sender.as_mut().unwrap().broadcast(message.to_vec().into()).await?;
-
-            println!("Sent mined block");
-        }
-
-        router.shutdown().await?;
-
-        Ok(())
-    }
-
-    async fn subscribe_loop(receiver: &mut GossipReceiver) -> anyhow::Result<()> {
-        while let Some(event) = receiver.try_next().await? {
-            if let Event::Gossip(GossipEvent::Received(msg)) = event {
-                match Message::from_bytes(&msg.content)? {
-                    Message::BlockMined { from, block } => {
-                        println!("> New block with id {} received.", block.index);
-                    },
-                    _ => {}
+                if let Some(block) = mined_block {
+                    let message = Message::BlockMined {
+                        from: endpoint.node_id(),
+                        block
+                    };
+                    let bytes = message.to_vec().into();
+                    println!("Sending mined block");
+                    // let _ = block_tx.send(bytes).await;
+                    let _ = sender.broadcast(bytes).await;
+                    println!("Sent mined block");
                 }
-            }
+            });
         }
 
-        Ok(())
-    }
+        // Listens for incoming messages
+        tokio::spawn(Self::subscribe_loop(receiver));
 
-    pub fn broadcast_block_mined(&mut self, block: Block) -> anyhow::Result<()> {
-        if self.block_tx.is_some() {
-            return Ok(self.block_tx.as_mut().unwrap().blocking_send(block)?)
-        }
+        // {
+        //     tokio::spawn(async move {
+        //         while let Some(msg) = block_rx.recv().await {
+        //             match Message::from_bytes(&msg) {
+        //                 Ok(Message::BlockMined { from, block }) => {
+        //                     println!("Received mined block");
+        //                 },
+        //                 _ => {
+        //                     println!("Received invalid message");
+        //                 }
+        //             }
+        //         }
+        //     });
+        // }
+
+        // self.block_tx = Some(block_tx);
+
+        // while let Some(mined_block) = block_rx.recv().await {
+        //     let message = Message::BlockMined {
+        //         from: endpoint.node_id(),
+        //         block: mined_block.clone()
+        //     };
+        //
+        //     self.sender.as_mut().unwrap().broadcast(message.to_vec().into()).await?;
+        //
+        //     println!("Sent mined block");
+        // }
 
         Ok(())
     }
@@ -127,13 +139,29 @@ impl Network {
         }
     }
 
-    fn input_loop(line_tx: tokio::sync::mpsc::Sender<String>) -> anyhow::Result<()> {
-        let mut buffer = String::new();
-        let stdin = std::io::stdin();
+    async fn subscribe_loop(mut receiver: GossipReceiver) -> anyhow::Result<()> {
         loop {
-            stdin.read_line(&mut buffer)?;
-            line_tx.blocking_send(buffer.clone())?;
-            buffer.clear();
+            match receiver.try_next().await {
+                Ok(Some(Event::Gossip(GossipEvent::Received(msg)))) => {
+                    match Message::from_bytes(&msg.content) {
+                        Ok(parsed) => println!("Message: {:?}", parsed),
+                        Err(e) => eprintln!("Failed to parse message: {e}"),
+                    }
+                }
+                Ok(Some(event)) => {
+                    println!("Ignored event: {:?}", event);
+                }
+                Ok(None) => {
+                    println!("Receiver closed");
+                    break;
+                }
+                Err(e) => {
+                    eprintln!("Error from try_next: {e}");
+                    break;
+                }
+            }
         }
+
+        Ok(())
     }
 }
