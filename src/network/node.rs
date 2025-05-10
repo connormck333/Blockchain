@@ -1,3 +1,5 @@
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use uuid::Uuid;
 use crate::block::Block;
 use crate::blockchain::Blockchain;
@@ -10,7 +12,8 @@ pub struct Node {
     pub blockchain: Blockchain,
     pub wallet: Wallet,
     pub mempool: Vec<Transaction>,
-    pub id: Uuid
+    pub id: Uuid,
+    pub difficulty: usize
 }
 
 impl Node {
@@ -20,7 +23,8 @@ impl Node {
             blockchain: Blockchain::new(difficulty),
             wallet: Wallet::new(),
             mempool: Vec::new(),
-            id: Uuid::new_v4()
+            id: Uuid::new_v4(),
+            difficulty
         }
     }
 
@@ -43,16 +47,20 @@ impl Node {
         transaction
     }
 
-    pub fn mine_block(&mut self) -> Option<Block> {
+    pub fn mine_block(&mut self, cancel_flag: Arc<AtomicBool>) -> Option<Block> {
         let previous_hash = self.blockchain.get_latest_block().hash.clone();
-        let mut block = Block::new(self.blockchain.get_chain().len() as u64, previous_hash, self.mempool.clone(), 3);
+        let mut block = Block::new(self.blockchain.get_chain().len() as u64, previous_hash, self.mempool.clone(), self.difficulty);
 
         self.mempool.clear();
-        block.mine();
+        while cancel_flag.load(Ordering::Relaxed) {
+            if block.mine() {
+                self.blockchain.add_block_to_chain(block.clone());
+                println!("Mined block {}", block.index);
 
-        self.blockchain.add_block_to_chain(block.clone());
-        println!("Mined block {}", block.index);
+                return Some(block)
+            }
+        }
 
-        Some(block)
+        None
     }
 }

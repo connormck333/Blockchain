@@ -35,17 +35,17 @@ impl Block {
         }
     }
 
-    pub fn mine(&mut self) {
-        loop {
-            let hash: String = self.create_hash();
+    pub fn mine(&mut self) -> bool {
+        let hash: String = self.create_hash();
 
-            if hash.starts_with(&"0".repeat(self.difficulty)) {
-                self.hash = hash;
-                break;
-            }
-
-            self.nonce += 1;
+        if hash.starts_with(&"0".repeat(self.difficulty)) {
+            self.hash = hash;
+            return true;
         }
+
+        self.nonce += 1;
+
+        false
     }
 
     pub fn create_hash(&self) -> String {

@@ -1,5 +1,6 @@
 use std::str::FromStr;
 use std::sync::{Arc};
+use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::Mutex;
 use futures_lite::StreamExt;
 use iroh::{Endpoint, NodeAddr};
@@ -16,8 +17,8 @@ use crate::network::node::Node;
 pub struct Network {
     connected_nodes: Vec<NodeAddr>,
     topic_id: TopicId,
-    args: Args,
-    gossip: Option<Gossip>
+    gossip: Option<Gossip>,
+    mining_active: Arc<AtomicBool>
 }
 
 impl Network {
@@ -28,8 +29,8 @@ impl Network {
         Self {
             connected_nodes: nodes,
             topic_id,
-            args,
-            gossip: None
+            gossip: None,
+            mining_active: Arc::new(AtomicBool::new(true))
         }
     }
 
@@ -71,27 +72,34 @@ impl Network {
 
         {
             let node_clone = node.clone();
+            let mining_flag = self.mining_active.clone();
             tokio::spawn(async move {
-                let mined_block: Option<Block> = tokio::task::spawn_blocking(move || {
-                    node_clone.blocking_lock().mine_block()
-                }).await.unwrap();
+                loop {
+                    let mined_block: Option<Block> = tokio::task::spawn_blocking({
+                        let node_inner = node_clone.clone();
+                        let cancel_flag = mining_flag.clone();
+                        move || node_inner.blocking_lock().mine_block(cancel_flag)
+                    }).await.unwrap();
 
-                if let Some(block) = mined_block {
-                    let message = Message::BlockMined {
-                        from: endpoint.node_id(),
-                        block
-                    };
-                    let bytes = message.to_vec().into();
-                    println!("Sending mined block");
-                    // let _ = block_tx.send(bytes).await;
-                    let _ = sender.broadcast(bytes).await;
-                    println!("Sent mined block");
+                        if let Some(block) = mined_block {
+                            let message = Message::BlockMined {
+                                from: endpoint.node_id(),
+                                block
+                            };
+                            let bytes = message.to_vec().into();
+                            println!("Sending mined block");
+                            let _ = sender.broadcast(bytes).await;
+                            println!("Sent mined block");
+                        } else {
+                            mining_flag.store(true, Ordering::Relaxed);
+                        }
                 }
             });
         }
 
         // Listens for incoming messages
-        tokio::spawn(Self::subscribe_loop(receiver));
+        let mining_flag = self.mining_active.clone();
+        tokio::spawn(Self::subscribe_loop(receiver, mining_flag));
 
         // {
         //     tokio::spawn(async move {
@@ -106,19 +114,6 @@ impl Network {
         //             }
         //         }
         //     });
-        // }
-
-        // self.block_tx = Some(block_tx);
-
-        // while let Some(mined_block) = block_rx.recv().await {
-        //     let message = Message::BlockMined {
-        //         from: endpoint.node_id(),
-        //         block: mined_block.clone()
-        //     };
-        //
-        //     self.sender.as_mut().unwrap().broadcast(message.to_vec().into()).await?;
-        //
-        //     println!("Sent mined block");
         // }
 
         Ok(())
@@ -139,12 +134,15 @@ impl Network {
         }
     }
 
-    async fn subscribe_loop(mut receiver: GossipReceiver) -> anyhow::Result<()> {
+    async fn subscribe_loop(mut receiver: GossipReceiver, mining_flag: Arc<AtomicBool>) -> anyhow::Result<()> {
         loop {
             match receiver.try_next().await {
                 Ok(Some(Event::Gossip(GossipEvent::Received(msg)))) => {
                     match Message::from_bytes(&msg.content) {
-                        Ok(parsed) => println!("Message: {:?}", parsed),
+                        Ok(parsed) => {
+                            mining_flag.store(false, Ordering::Relaxed);
+                            println!("Block received... Stopping mining");
+                        },
                         Err(e) => eprintln!("Failed to parse message: {e}"),
                     }
                 }
