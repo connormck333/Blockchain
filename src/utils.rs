@@ -27,10 +27,6 @@ pub fn mine_block(
             println!("Mined block {}", block.index);
             return Some(block);
         }
-
-        // if block.nonce % 100 == 0 {
-        //     std::hint::spin_loop();
-        // }
     }
 
     None

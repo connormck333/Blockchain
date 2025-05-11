@@ -4,9 +4,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use tokio::sync::Mutex;
 use futures_lite::StreamExt;
-use iroh::{Endpoint, NodeAddr};
+use iroh::{Endpoint, NodeAddr, NodeId};
 use iroh::protocol::Router;
-use iroh_gossip::net::{Event, Gossip, GossipEvent, GossipReceiver};
+use iroh_gossip::net::{Event, Gossip, GossipEvent, GossipReceiver, GossipSender};
 use iroh_gossip::proto::TopicId;
 use crate::block::Block;
 use crate::network::command::Command;
@@ -20,6 +20,7 @@ pub struct Network {
     connected_nodes: Vec<NodeAddr>,
     topic_id: TopicId,
     gossip: Option<Gossip>,
+    router: Option<Router>,
     mining_active: Arc<AtomicBool>,
     opening_node: bool
 }
@@ -33,120 +34,26 @@ impl Network {
             connected_nodes: nodes,
             topic_id,
             gossip: None,
+            router: None,
             mining_active: Arc::new(AtomicBool::new(true)),
             opening_node: matches!(args.command, Command::OPEN)
         }
     }
 
     pub async fn connect(&mut self, node: Arc<Mutex<Node>>) -> anyhow::Result<()> {
-        let endpoint = Endpoint::builder().discovery_n0().bind().await?;
-        println!("node id: {}", endpoint.node_id());
-
-        self.gossip = Some(Gossip::builder()
-            .spawn(endpoint.clone())
-            .await?
-        );
-
-        let router: Router = Router::builder(endpoint.clone())
-            .accept(iroh_gossip::ALPN, self.gossip.as_ref().unwrap().clone())
-            .spawn()
-            .await?;
-
-        let ticket = {
-            let me = endpoint.node_addr().await?;
-            let nodes = vec![me];
-            Ticket { topic: self.topic_id, peers: nodes }
-        };
-        println!("> Ticket to join us: {ticket}");
-
-        let node_ids = self.connected_nodes.clone().iter().map(|p| p.node_id).collect();
-        if self.connected_nodes.is_empty() {
-            println!("> Waiting for nodes to join");
-        } else {
-            println!("> Joining nodes: {}", self.connected_nodes.len());
-            for node in self.connected_nodes.clone().into_iter() {
-                println!("{}", node.clone().node_id);
-                endpoint.add_node_addr(node)?
-            }
-        }
-
-        let (sender, receiver) = self.gossip.as_mut().unwrap().subscribe_and_join(self.topic_id, node_ids).await?.split();
-        println!("> Connected");
+        let endpoint = self.setup_endpoint().await;
+        let (sender, receiver) = self.join_network(&endpoint).await;
 
         if self.opening_node {
-            let genesis_block = node.clone().lock().await.blockchain.create_genesis_block();
-            let message = Message::GenesisBlock {
-                from: endpoint.node_id(),
-                genesis_block
-            };
-            let bytes = message.to_vec().into();
-            println!("> Sending genesis block message");
-            let _ = sender.broadcast(bytes).await;
-            println!("> Sent genesis block message");
+            self.send_genesis_block(&sender, &node, endpoint.node_id()).await;
         }
 
-        // let (block_tx, mut block_rx) = tokio::sync::mpsc::channel(1);
-
-        {
-            let node_clone = node.clone();
-            let mining_flag = self.mining_active.clone();
-            tokio::spawn(async move {
-                loop {
-                    if node_clone.lock().await.blockchain.get_length() > 0 {
-                        let mined_block: Option<Block> = tokio::task::spawn_blocking({
-                            let cancel_flag = mining_flag.clone();
-                            let node_inner = node_clone.clone();
-                            let transactions = node_inner.lock().await.mempool.clone();
-                            let difficulty = node_inner.lock().await.difficulty.clone();
-                            let blockchain_clone = node_inner.lock().await.blockchain.clone();
-                            move || mine_block(
-                                transactions,
-                                difficulty,
-                                blockchain_clone.get_latest_block().clone().hash,
-                                blockchain_clone.get_length() as u64,
-                                cancel_flag
-                            )
-                        }).await.unwrap();
-
-                        if let Some(block) = mined_block {
-                            node_clone.lock().await.blockchain.add_block_to_chain(block.clone());
-                            node_clone.lock().await.mempool.clear();
-
-                            let message = Message::BlockMined {
-                                from: endpoint.node_id(),
-                                block
-                            };
-                            let bytes = message.to_vec().into();
-                            println!("Sending mined block");
-                            let _ = sender.broadcast(bytes).await;
-                            println!("Sent mined block");
-                        } else {
-                            mining_flag.store(true, Ordering::Relaxed);
-                        }
-                    }
-                }
-            });
-        }
+        Self::spawn_mining_loop(sender.clone(), node.clone(), self.mining_active.clone(), endpoint.node_id()).await?;
 
         // Listens for incoming messages
         let node_clone = node.clone();
         let mining_flag = self.mining_active.clone();
         tokio::spawn(Self::subscribe_loop(receiver, node_clone, mining_flag));
-
-        // {
-        //     tokio::spawn(async move {
-        //         while let Some(msg) = block_rx.recv().await {
-        //             match Message::from_bytes(&msg) {
-        //                 Ok(Message::BlockMined { from, block }) => {
-        //                     println!("Received mined block");
-        //                 },
-        //                 _ => {
-        //                     println!("Received invalid message");
-        //                 }
-        //             }
-        //         }
-        //     });
-        // }
 
         Ok(())
     }
@@ -160,10 +67,61 @@ impl Network {
             }
             Command::JOIN { ticket } => {
                 let ticket = Ticket::from_str(ticket).unwrap();
-                println!("> Joining chat room for topic {}", ticket.topic);
                 (ticket.topic, ticket.peers)
             }
         }
+    }
+
+    async fn setup_endpoint(&mut self) -> Endpoint {
+        let endpoint = Endpoint::builder().discovery_n0().bind().await.unwrap();
+
+        self.gossip = Some(Gossip::builder()
+            .spawn(endpoint.clone()).await
+            .unwrap()
+        );
+
+        self.router = Some(Router::builder(endpoint.clone())
+            .accept(iroh_gossip::ALPN, self.gossip.as_ref().unwrap().clone())
+            .spawn().await
+            .unwrap()
+        );
+
+        let ticket = {
+            let me = endpoint.node_addr().await.unwrap();
+            let nodes = vec![me];
+            Ticket { topic: self.topic_id, peers: nodes }
+        };
+        println!("> Ticket to join us: {ticket}");
+
+        endpoint
+    }
+
+    async fn join_network(&mut self, endpoint: &Endpoint) -> (GossipSender, GossipReceiver) {
+        let node_ids = self.connected_nodes.clone().iter().map(|p| p.node_id).collect();
+        if self.connected_nodes.is_empty() {
+            println!("> Waiting for nodes to join");
+        } else {
+            println!("> Joining nodes: {}", self.connected_nodes.len());
+            for node in self.connected_nodes.clone().into_iter() {
+                endpoint.add_node_addr(node).unwrap()
+            }
+        }
+
+        let (sender, receiver) = self.gossip.as_mut().unwrap().subscribe_and_join(self.topic_id, node_ids).await.unwrap().split();
+        println!("> Connected");
+
+        (sender, receiver)
+    }
+
+    async fn send_genesis_block(&mut self, sender: &GossipSender, node: &Arc<Mutex<Node>>, node_id: NodeId) {
+        let genesis_block = node.clone().lock().await.blockchain.create_genesis_block();
+        let message = Message::GenesisBlock {
+            from: node_id,
+            genesis_block
+        };
+        let bytes = message.to_vec().into();
+        let _ = sender.broadcast(bytes).await;
+        println!("> Sent genesis block message");
     }
 
     async fn subscribe_loop(mut receiver: GossipReceiver, node: Arc<Mutex<Node>>, mining_flag: Arc<AtomicBool>) -> anyhow::Result<()> {
@@ -176,11 +134,10 @@ impl Network {
                                 Message::GenesisBlock {from, genesis_block} => {
                                     tokio::time::sleep(Duration::from_millis(1000)).await;
                                     node.lock().await.blockchain.load_starting_block(genesis_block);
-                                    println!("Starting block received from {}", from);
-                                    println!("Starting mining...");
+                                    println!("> Starting block received from {}", from);
+                                    println!("> Starting mining...");
                                 }
                                 Message::BlockMined {from, block} => {
-                                    println!("Received block mined");
                                     if node.lock().await.receive_block(block) {
                                         mining_flag.store(false, Ordering::Relaxed);
                                         println!("Valid block received from {}... Stopping mining", from);
@@ -209,6 +166,46 @@ impl Network {
                 }
             }
         }
+
+        Ok(())
+    }
+
+    async fn spawn_mining_loop(sender: GossipSender, node: Arc<Mutex<Node>>, mining_flag: Arc<AtomicBool>, node_id: NodeId) -> anyhow::Result<()> {
+        tokio::spawn(async move {
+            loop {
+                if node.lock().await.blockchain.get_length() > 0 {
+                    let mined_block: Option<Block> = tokio::task::spawn_blocking({
+                        let cancel_flag = mining_flag.clone();
+                        let node_inner = node.clone();
+                        let transactions = node_inner.lock().await.mempool.clone();
+                        let difficulty = node_inner.lock().await.difficulty.clone();
+                        let blockchain_clone = node_inner.lock().await.blockchain.clone();
+                        move || mine_block(
+                            transactions,
+                            difficulty,
+                            blockchain_clone.get_latest_block().clone().hash,
+                            blockchain_clone.get_length() as u64,
+                            cancel_flag
+                        )
+                    }).await.unwrap();
+
+                    if let Some(block) = mined_block {
+                        node.lock().await.blockchain.add_block_to_chain(block.clone());
+                        node.lock().await.mempool.clear();
+
+                        let message = Message::BlockMined {
+                            from: node_id,
+                            block
+                        };
+                        let bytes = message.to_vec().into();
+                        let _ = sender.broadcast(bytes).await;
+                        println!("Sent mined block");
+                    } else {
+                        mining_flag.store(true, Ordering::Relaxed);
+                    }
+                }
+            }
+        });
 
         Ok(())
     }
