@@ -1,5 +1,5 @@
 use crate::block::Block;
-
+use crate::utils::mine_block;
 /*
     Blockchain is a shared, immutable digital ledger, enabling the recording of transactions
     and the tracking of assets within a business network and providing a single source of truth.
@@ -13,20 +13,27 @@ pub struct Blockchain {
 
 impl Blockchain {
     pub fn new(difficulty: usize) -> Self {
-        let genesis_block = Self::create_genesis_block(difficulty);
         Self {
-            chain: vec![genesis_block],
+            chain: vec![],
             difficulty
         }
     }
 
     pub fn is_valid_new_block(&self, new_block: &Block) -> bool {
-        self.validate_block_data(new_block) &&
-            self.validate_block_transactions(new_block)
+        let last_block = self.chain.last().unwrap();
+        println!("Checking new block validity, current length {}", self.chain.len());
+        println!("Previous block, {}", last_block);
+        println!("New block: {}", new_block);
+
+        new_block.previous_block_hash == last_block.hash &&
+            new_block.index == last_block.index + 1 &&
+            new_block.hash.starts_with(&"0".repeat(self.difficulty)) &&
+            new_block.hash == new_block.create_hash()
     }
 
     pub fn add_block_to_chain(&mut self, new_block: Block) -> bool {
         if !self.is_valid_new_block(&new_block) {
+            println!("Block created by this node rejected the block.");
             return false;
         }
 
@@ -42,46 +49,26 @@ impl Blockchain {
         self.chain.last().unwrap()
     }
 
-    fn validate_block_data(&self, new_block: &Block) -> bool {
-        let last_block = self.chain.last().unwrap();
-
-        new_block.previous_block_hash == last_block.hash &&
-            new_block.index == last_block.index + 1 &&
-            new_block.hash.starts_with(&"0".repeat(self.difficulty)) &&
-            new_block.hash == new_block.create_hash()
-    }
-
-    fn validate_block_transactions(&self, block: &Block) -> bool {
-        for transaction in &block.transactions {
-            let sender = transaction.sender.clone();
-            let sender_funds: i64 = self.get_user_funds(sender);
-            let remaining_funds: i64 = sender_funds - transaction.amount as i64;
-
-            if remaining_funds < 0 {
-                return false;
+    pub fn create_genesis_block(&mut self) -> Block {
+        let mut genesis = Block::new(0, "0".to_string(), Vec::new(), self.difficulty);
+        loop {
+            if genesis.mine() {
+                break;
             }
         }
 
-        true
+        println!("Genesis block: {}", genesis);
+        self.chain.push(genesis.clone());
+
+        genesis
     }
 
-    fn get_user_funds(&self, user_address: String) -> i64 {
-        let mut funds: i64 = 0;
-        for block in &self.chain {
-            for transaction in &block.transactions {
-                if transaction.sender == user_address {
-                    funds -= transaction.amount as i64;
-                } else if transaction.recipient == user_address {
-                    funds += transaction.amount as i64;
-                }
-            }
-        }
-
-        funds
+    pub fn load_starting_block(&mut self, starting_block: Block) {
+        self.chain.push(starting_block);
     }
 
-    fn create_genesis_block(difficulty: usize) -> Block {
-        Block::new(0, "0".to_string(), Vec::new(), difficulty)
+    pub fn get_length(&self) -> usize {
+        self.chain.len()
     }
 }
 

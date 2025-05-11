@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use chrono::Utc;
 use serde::{Serialize, Deserialize};
 use serde_json::to_string;
@@ -9,6 +10,16 @@ use crate::utils::calculate_hash;
     that permanently stores transaction data for the network.
 */
 
+#[derive(Serialize, Deserialize)]
+struct HashlessBlock {
+    pub index: u64,
+    pub timestamp: i64,
+    pub transactions: Vec<Transaction>,
+    pub previous_block_hash: String,
+    pub nonce: u64,
+    pub difficulty: usize,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Block {
     pub index: u64,
@@ -17,8 +28,6 @@ pub struct Block {
     pub previous_block_hash: String,
     pub nonce: u64,
     pub difficulty: usize,
-
-    #[serde(skip_serializing, skip_deserializing)]
     pub hash: String
 }
 
@@ -49,9 +58,25 @@ impl Block {
     }
 
     pub fn create_hash(&self) -> String {
-        let serialized: String = to_string(self).expect("Failed to serialize block");
+        let hashless_block = HashlessBlock {
+            index: self.index,
+            timestamp: self.timestamp,
+            transactions: self.transactions.clone(),
+            previous_block_hash: self.previous_block_hash.clone(),
+            nonce: self.nonce,
+            difficulty: self.difficulty
+        };
+
+        let serialized: String = to_string(&hashless_block).expect("Failed to serialize block");
 
         calculate_hash(serialized)
+    }
+}
+
+impl Display for Block {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "index: {}, timestamp, {}, transactions: {}, prev block hash: {}, nonce: {}, difficulty: {}, hash: {}",
+               self.index, self.timestamp, self.transactions.len(), self.previous_block_hash, self.nonce, self.difficulty, self.hash)
     }
 }
 

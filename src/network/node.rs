@@ -52,13 +52,17 @@ impl Node {
         let mut block = Block::new(self.blockchain.get_chain().len() as u64, previous_hash, self.mempool.clone(), self.difficulty);
 
         self.mempool.clear();
-        while cancel_flag.load(Ordering::Relaxed) {
+        while cancel_flag.load(Ordering::Relaxed) == true {
             if block.mine() {
                 self.blockchain.add_block_to_chain(block.clone());
                 println!("Mined block {}", block.index);
 
-                return Some(block)
+                return Some(block);
             }
+
+            // if block.nonce % 100 == 0 {
+            //     std::hint::spin_loop();
+            // }
         }
 
         None

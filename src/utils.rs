@@ -1,5 +1,9 @@
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use hex::encode;
 use sha2::{Digest, Sha256};
+use crate::block::Block;
+use crate::transaction::Transaction;
 
 pub fn calculate_hash(serialized_data: String) -> String {
     let mut hasher = Sha256::new();
@@ -7,4 +11,27 @@ pub fn calculate_hash(serialized_data: String) -> String {
     let result = hasher.finalize();
 
     encode(result)
+}
+
+pub fn mine_block(
+    transactions: Vec<Transaction>,
+    difficulty: usize,
+    previous_hash: String,
+    block_index: u64,
+    cancel_flag: Arc<AtomicBool>
+) -> Option<Block> {
+    let mut block = Block::new(block_index, previous_hash, transactions, difficulty);
+
+    while cancel_flag.load(Ordering::Relaxed) == true {
+        if block.mine() {
+            println!("Mined block {}", block.index);
+            return Some(block);
+        }
+
+        // if block.nonce % 100 == 0 {
+        //     std::hint::spin_loop();
+        // }
+    }
+
+    None
 }

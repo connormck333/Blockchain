@@ -7,7 +7,8 @@ use crate::transaction::Transaction;
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Message {
     BlockMined { from: NodeId, block: Block },
-    TransactionCreated { from: NodeId, transaction: Transaction }
+    TransactionCreated { from: NodeId, transaction: Transaction },
+    GenesisBlock { from: NodeId, genesis_block: Block }
 }
 
 impl Message {
