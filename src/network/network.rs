@@ -50,10 +50,7 @@ impl Network {
 
         Self::spawn_mining_loop(sender.clone(), node.clone(), self.mining_active.clone(), endpoint.node_id()).await?;
 
-        // Listens for incoming messages
-        let node_clone = node.clone();
-        let mining_flag = self.mining_active.clone();
-        tokio::spawn(Self::subscribe_loop(receiver, node_clone, mining_flag));
+        tokio::spawn(Self::subscribe_loop(receiver, node.clone(), self.mining_active.clone()));
 
         Ok(())
     }
@@ -152,6 +149,9 @@ impl Network {
                         },
                         Err(e) => eprintln!("Failed to parse message: {e}"),
                     }
+                }
+                Ok(Some(Event::Gossip(GossipEvent::NeighborUp(new_node_id)))) => {
+
                 }
                 Ok(Some(event)) => {
                     println!("Ignored event: {:?}", event);

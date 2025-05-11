@@ -1,5 +1,4 @@
 use crate::block::Block;
-use crate::utils::mine_block;
 /*
     Blockchain is a shared, immutable digital ledger, enabling the recording of transactions
     and the tracking of assets within a business network and providing a single source of truth.

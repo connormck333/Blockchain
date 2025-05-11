@@ -1,5 +1,3 @@
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use uuid::Uuid;
 use crate::block::Block;
 use crate::blockchain::Blockchain;
@@ -45,26 +43,5 @@ impl Node {
         self.mempool.push(transaction.clone());
 
         transaction
-    }
-
-    pub fn mine_block(&mut self, cancel_flag: Arc<AtomicBool>) -> Option<Block> {
-        let previous_hash = self.blockchain.get_latest_block().hash.clone();
-        let mut block = Block::new(self.blockchain.get_chain().len() as u64, previous_hash, self.mempool.clone(), self.difficulty);
-
-        self.mempool.clear();
-        while cancel_flag.load(Ordering::Relaxed) == true {
-            if block.mine() {
-                self.blockchain.add_block_to_chain(block.clone());
-                println!("Mined block {}", block.index);
-
-                return Some(block);
-            }
-
-            // if block.nonce % 100 == 0 {
-            //     std::hint::spin_loop();
-            // }
-        }
-
-        None
     }
 }
