@@ -89,6 +89,7 @@ impl Network {
             Ticket { topic: self.topic_id, peers: nodes }
         };
         println!("> Ticket to join us: {ticket}");
+        println!("> Node id: {}", endpoint.node_id());
 
         endpoint
     }
@@ -100,7 +101,7 @@ impl Network {
         } else {
             println!("> Joining nodes: {}", self.connected_nodes.len());
             for node in self.connected_nodes.clone().into_iter() {
-                endpoint.add_node_addr(node).unwrap()
+                endpoint.add_node_addr(node).unwrap();
             }
         }
 
@@ -116,8 +117,8 @@ impl Network {
             from: node_id,
             genesis_block
         };
-        let bytes = message.to_vec().into();
-        let _ = sender.broadcast(bytes).await;
+
+        Self::send_message(message, &sender).await;
         println!("> Sent genesis block message");
     }
 
@@ -149,9 +150,6 @@ impl Network {
                         },
                         Err(e) => eprintln!("Failed to parse message: {e}"),
                     }
-                }
-                Ok(Some(Event::Gossip(GossipEvent::NeighborUp(new_node_id)))) => {
-
                 }
                 Ok(Some(event)) => {
                     println!("Ignored event: {:?}", event);
@@ -190,7 +188,7 @@ impl Network {
                     }).await.unwrap();
 
                     if let Some(block) = mined_block {
-                        node.lock().await.blockchain.add_block_to_chain(block.clone());
+                        node.lock().await.blockchain.add_block_without_validation(block.clone());
                         node.lock().await.mempool.clear();
 
                         let message = Message::BlockMined {
@@ -208,5 +206,10 @@ impl Network {
         });
 
         Ok(())
+    }
+
+    async fn send_message(message: Message, sender: &GossipSender) {
+        let bytes = message.to_vec().into();
+        let _ = sender.broadcast(bytes).await;
     }
 }

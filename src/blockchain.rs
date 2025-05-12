@@ -19,10 +19,15 @@ impl Blockchain {
     }
 
     pub fn is_valid_new_block(&self, new_block: &Block) -> bool {
+        if self.chain.len() == 0 {
+            return true;
+        }
+
         let last_block = self.chain.last().unwrap();
         println!("Checking new block validity, current length {}", self.chain.len());
         println!("Previous block, {}", last_block);
         println!("New block: {}", new_block);
+
 
         new_block.previous_block_hash == last_block.hash &&
             new_block.index == last_block.index + 1 &&
@@ -32,12 +37,16 @@ impl Blockchain {
 
     pub fn add_block_to_chain(&mut self, new_block: Block) -> bool {
         if !self.is_valid_new_block(&new_block) {
-            println!("Block created by this node rejected the block.");
             return false;
         }
 
         self.chain.push(new_block);
         true
+    }
+
+    pub fn add_block_without_validation(&mut self, new_block: Block) {
+        println!("> Block added by this node");
+        self.chain.push(new_block);
     }
 
     pub fn get_chain(&self) -> &Vec<Block> {
