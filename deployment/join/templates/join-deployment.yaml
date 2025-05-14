@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blockchain-join
+  labels:
+    app.kubernetes.io/name: blockchain
+    app.kubernetes.io/instance: blockchain-join
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    meta.helm.sh/release-name: blockchain-join
+    meta.helm.sh/release-namespace: default
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      app: blockchain-join
+      role: join
+  template:
+    metadata:
+      labels:
+        app: blockchain-join
+        role: join
+    spec:
+      containers:
+        - name: blockchain
+          image: blockchain:latest
+          args: ["join", "{{ .Values.ticket }}"]
+          imagePullPolicy: Never

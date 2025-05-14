@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blockchain-open
+  labels:
+    app.kubernetes.io/name: blockchain
+    app.kubernetes.io/instance: blockchain-open
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: blockchain
+      role: open
+  template:
+    metadata:
+      labels:
+        app: blockchain
+        role: open
+    spec:
+      containers:
+        - name: blockchain
+          image: blockchain:latest
+          args: ["open"]
+          imagePullPolicy: Never
