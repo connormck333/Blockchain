@@ -4,3 +4,4 @@ pub mod ticket;
 pub mod args;
 pub mod command;
 pub mod message;
+pub mod message_handler;

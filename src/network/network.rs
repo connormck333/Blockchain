@@ -13,6 +13,7 @@ use crate::network::command::Command;
 use crate::network::message::Message;
 use crate::network::ticket::Ticket;
 use crate::network::args::Args;
+use crate::network::message_handler::handle_incoming_message;
 use crate::network::node::Node;
 use crate::utils::mine_block;
 
@@ -126,30 +127,7 @@ impl Network {
         loop {
             match receiver.try_next().await {
                 Ok(Some(Event::Gossip(GossipEvent::Received(msg)))) => {
-                    match Message::from_bytes(&msg.content) {
-                        Ok(parsed) => {
-                            match parsed {
-                                Message::GenesisBlock {from, genesis_block} => {
-                                    tokio::time::sleep(Duration::from_millis(1000)).await;
-                                    node.lock().await.blockchain.load_starting_block(genesis_block);
-                                    println!("> Starting block received from {}", from);
-                                    println!("> Starting mining...");
-                                }
-                                Message::BlockMined {from, block} => {
-                                    if node.lock().await.receive_block(block) {
-                                        mining_flag.store(false, Ordering::Relaxed);
-                                        println!("Valid block received from {}... Stopping mining", from);
-                                    } else {
-                                        println!("Invalid block received from {}... Continuing to mine", from);
-                                    }
-                                }
-                                _ => {
-                                    println!("Unknown message received");
-                                }
-                            }
-                        },
-                        Err(e) => eprintln!("Failed to parse message: {e}"),
-                    }
+                    handle_incoming_message(node.clone(), mining_flag.clone(), msg).await;
                 }
                 Ok(Some(event)) => {
                     println!("Ignored event: {:?}", event);
