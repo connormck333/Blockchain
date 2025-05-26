@@ -1,7 +1,6 @@
 use std::str::FromStr;
 use std::sync::{Arc};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Duration;
 use tokio::sync::Mutex;
 use futures_lite::StreamExt;
 use iroh::{Endpoint, NodeAddr, NodeId};
@@ -9,12 +8,12 @@ use iroh::protocol::Router;
 use iroh_gossip::net::{Event, Gossip, GossipEvent, GossipReceiver, GossipSender};
 use iroh_gossip::proto::TopicId;
 use crate::block::Block;
-use crate::network::command::Command;
 use crate::network::message::Message;
 use crate::network::ticket::Ticket;
-use crate::network::args::Args;
+use crate::args::args::Args;
 use crate::network::message_handler::handle_incoming_message;
 use crate::network::node::Node;
+use crate::args::command::Command;
 use crate::utils::mine_block;
 
 pub struct Network {
@@ -64,7 +63,7 @@ impl Network {
                 (topic, vec![])
             }
             Command::JOIN { ticket } => {
-                let ticket = Ticket::from_str(ticket).unwrap();
+                let ticket = Ticket::from_str(&ticket).unwrap();
                 (ticket.topic, ticket.peers)
             }
         }
