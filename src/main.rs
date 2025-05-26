@@ -25,10 +25,13 @@ async fn main() -> Result<()> {
     let mut network = Network::new(args.clone());
     let node = Arc::new(Mutex::new(Node::new(&node_name, 5)));
 
-    network.connect(node).await?;
+    let mempool = node.lock().await.mempool.clone();
+    let wallet = node.lock().await.wallet.clone();
+
+    network.connect(node.clone()).await?;
 
     if args.node_type == NodeType::FULL {
-        start_server().await?;
+        start_server(mempool, wallet).await?;
     }
 
     tokio::signal::ctrl_c().await?;

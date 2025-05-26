@@ -1,15 +1,19 @@
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use uuid::Uuid;
 use crate::block::Block;
 use crate::blockchain::Blockchain;
 use crate::transaction::Transaction;
 use crate::wallet::Wallet;
 
+pub type Mempool = Arc<Mutex<Vec<Transaction>>>;
+
 #[derive(Clone)]
 pub struct Node {
     pub name: String,
     pub blockchain: Blockchain,
-    pub wallet: Wallet,
-    pub mempool: Vec<Transaction>,
+    pub wallet: Arc<Mutex<Wallet>>,
+    pub mempool: Mempool,
     pub id: Uuid,
     pub difficulty: usize
 }
@@ -19,8 +23,8 @@ impl Node {
         Self {
             name: name.to_string(),
             blockchain: Blockchain::new(difficulty),
-            wallet: Wallet::new(),
-            mempool: Vec::new(),
+            wallet: Arc::new(Mutex::new(Wallet::new())),
+            mempool: Arc::new(Mutex::new(Vec::new())),
             id: Uuid::new_v4(),
             difficulty
         }
@@ -34,14 +38,5 @@ impl Node {
             println!("{} rejected the block", self.name);
             false
         }
-    }
-
-    pub fn create_transaction(&mut self, recipient: String, amount: u64) -> Transaction {
-        let mut transaction = Transaction::new(self.wallet.get_public_key(), recipient, amount);
-        transaction.signature = Some(self.wallet.create_signature(&transaction));
-
-        self.mempool.push(transaction.clone());
-
-        transaction
     }
 }

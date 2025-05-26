@@ -152,7 +152,7 @@ impl Network {
                     let mined_block: Option<Block> = tokio::task::spawn_blocking({
                         let cancel_flag = mining_flag.clone();
                         let node_inner = node.clone();
-                        let transactions = node_inner.lock().await.mempool.clone();
+                        let transactions = node_inner.lock().await.mempool.lock().await.clone();
                         let difficulty = node_inner.lock().await.difficulty.clone();
                         let blockchain_clone = node_inner.lock().await.blockchain.clone();
                         move || mine_block(
@@ -166,7 +166,7 @@ impl Network {
 
                     if let Some(block) = mined_block {
                         node.lock().await.blockchain.add_block_without_validation(block.clone());
-                        node.lock().await.mempool.clear();
+                        node.lock().await.mempool.lock().await.clear();
 
                         let message = Message::BlockMined {
                             from: node_id,
