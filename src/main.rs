@@ -7,6 +7,7 @@ use crate::args::node_type::NodeType;
 use crate::network::network::Network;
 use crate::network::node::Node;
 use crate::server::server::start_server;
+use crate::database::connection::Connection;
 
 mod block;
 mod transaction;
@@ -16,17 +17,24 @@ mod wallet;
 mod network;
 mod server;
 mod args;
+mod database;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    dotenv::dotenv().ok();
+
     let args = Args::parse();
     let node_name: String = if args.name.is_some() {args.clone().name.unwrap()} else {"".to_string()};
 
     let mut network = Network::new(args.clone());
     let node = Arc::new(Mutex::new(Node::new(&node_name, 5)));
-
     let mempool = node.lock().await.mempool.clone();
     let wallet = node.lock().await.wallet.clone();
+    let db_connection: Connection;
+
+    if args.node_type == NodeType::FULL {
+        db_connection = Connection::new(node.lock().await.id).await;
+    }
 
     network.connect(node.clone()).await?;
 
