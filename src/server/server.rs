@@ -3,28 +3,22 @@ use std::sync::Arc;
 use axum::{Json, Router};
 use axum::extract::State;
 use axum::routing::post;
-use serde::{Deserialize, Serialize};
 use tokio::net::TcpListener;
-use tokio::sync::Mutex;
+use crate::database::connection::Connection;
 use crate::network::node::Mempool;
-use crate::transaction::Transaction;
+use crate::server::request_bodies::{CreateUserData, TransactionData};
 use crate::wallet::Wallet;
-
-#[derive(Serialize, Deserialize, Debug)]
-struct TransactionData {
-    recipient: String,
-    amount: u64
-}
 
 #[derive(Clone)]
 struct ServerState {
     mempool: Mempool,
-    wallet: Arc<Mutex<Wallet>>
+    database: Arc<Connection>
 }
 
-pub async fn start_server(mempool: Mempool, wallet: Arc<Mutex<Wallet>>) -> anyhow::Result<()> {
-    let state = ServerState { mempool, wallet };
+pub async fn start_server(mempool: Mempool, database: Arc<Connection>) -> anyhow::Result<()> {
+    let state = ServerState { mempool, database };
     let app = Router::new()
+        .route("/create-user", post(create_user))
         .route("/transaction", post(handle_transaction))
         .with_state(state);
 
@@ -37,17 +31,39 @@ pub async fn start_server(mempool: Mempool, wallet: Arc<Mutex<Wallet>>) -> anyho
     Ok(())
 }
 
+async fn create_user(
+    State(state): State<ServerState>,
+    Json(payload): Json<CreateUserData>
+) -> String {
+    assert!(payload.username.len() > 5);
+    assert!(payload.password.len() > 5);
+
+    let new_wallet = Wallet::new();
+
+    let db_response = state.database.create_user(
+        payload.username.as_str(),
+        payload.password.as_str(),
+        new_wallet
+    ).await;
+
+    if db_response.is_err() {
+        return "Error creating user".to_string();
+    }
+
+    "User Created".to_string()
+}
+
 async fn handle_transaction(
     State(state): State<ServerState>,
     Json(payload): Json<TransactionData>
 ) -> String {
-    let public_key = state.wallet.lock().await.get_public_key();
-    let mut transaction = Transaction::new(public_key, payload.recipient, payload.amount);
-    transaction.signature = Some(state.wallet.lock().await.create_signature(&transaction));
-
-    state.mempool.lock().await.push(transaction);
-
-    println!("Transaction added to mempool.");
+    // let public_key = state.wallet.lock().await.get_public_key();
+    // let mut transaction = Transaction::new(public_key, payload.recipient, payload.amount);
+    // transaction.signature = Some(state.wallet.lock().await.create_signature(&transaction));
+    //
+    // state.mempool.lock().await.push(transaction);
+    //
+    // println!("Transaction added to mempool.");
 
     "Received".to_string()
 }

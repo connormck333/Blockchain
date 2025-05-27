@@ -4,7 +4,6 @@ use uuid::Uuid;
 use crate::block::Block;
 use crate::blockchain::Blockchain;
 use crate::transaction::Transaction;
-use crate::wallet::Wallet;
 
 pub type Mempool = Arc<Mutex<Vec<Transaction>>>;
 
@@ -12,7 +11,6 @@ pub type Mempool = Arc<Mutex<Vec<Transaction>>>;
 pub struct Node {
     pub name: String,
     pub blockchain: Blockchain,
-    pub wallet: Arc<Mutex<Wallet>>,
     pub mempool: Mempool,
     pub id: Uuid,
     pub difficulty: usize
@@ -23,7 +21,6 @@ impl Node {
         Self {
             name: name.to_string(),
             blockchain: Blockchain::new(difficulty),
-            wallet: Arc::new(Mutex::new(Wallet::new())),
             mempool: Arc::new(Mutex::new(Vec::new())),
             id: Uuid::new_v4(),
             difficulty

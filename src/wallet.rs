@@ -7,7 +7,7 @@ use crate::transaction::Transaction;
 
 #[derive(Clone)]
 pub struct Wallet {
-    private_key: SecretKey,
+    pub private_key: SecretKey,
     pub public_key: PublicKey,
     pub address: String
 }
@@ -19,6 +19,14 @@ impl Wallet {
         let address = Self::create_address_hash(&public_key);
 
         Wallet {
+            private_key,
+            public_key,
+            address
+        }
+    }
+
+    pub fn load(private_key: SecretKey, public_key: PublicKey, address: String) -> Self {
+        Self {
             private_key,
             public_key,
             address
@@ -55,5 +63,9 @@ impl Wallet {
 
     pub fn get_public_key(&self) -> String {
         hex::encode(self.public_key.serialize())
+    }
+
+    pub fn get_private_key(&self) -> String {
+        hex::encode(self.private_key.secret_bytes())
     }
 }
