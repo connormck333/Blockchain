@@ -39,7 +39,7 @@ async fn main() -> Result<()> {
 
     if args.node_type == NodeType::FULL {
         tokio::select! {
-            _ = start_server(mempool, db_connection.clone()) => {
+            _ = start_server(mempool.clone(), db_connection.clone()) => {
                 println!("Server shutting down...");
             }
             _ = tokio::signal::ctrl_c() => {
@@ -61,14 +61,11 @@ async fn main() -> Result<()> {
 
 
 async fn cleanup(db_connection: Arc<Connection>) -> Result<()> {
-    // Ensure the pool is dropped (closing connections)
     let pool = db_connection.pool.clone();
     drop(pool);
 
-    // Small delay to ensure Postgres closes connections
     tokio::time::sleep(std::time::Duration::from_millis(200)).await;
 
-    // Now drop the database
     db_connection.drop_database().await;
     println!("Database dropped successfully.");
     Ok(())

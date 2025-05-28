@@ -7,6 +7,7 @@ use tokio::net::TcpListener;
 use crate::database::connection::Connection;
 use crate::network::node::Mempool;
 use crate::server::request_bodies::{CreateUserData, TransactionData};
+use crate::transaction::Transaction;
 use crate::wallet::Wallet;
 
 #[derive(Clone)]
@@ -57,13 +58,23 @@ async fn handle_transaction(
     State(state): State<ServerState>,
     Json(payload): Json<TransactionData>
 ) -> String {
-    // let public_key = state.wallet.lock().await.get_public_key();
-    // let mut transaction = Transaction::new(public_key, payload.recipient, payload.amount);
-    // transaction.signature = Some(state.wallet.lock().await.create_signature(&transaction));
-    //
-    // state.mempool.lock().await.push(transaction);
-    //
-    // println!("Transaction added to mempool.");
+    let db_response = state.database.get_user(
+        payload.username.as_str(),
+        payload.password.as_str()
+    ).await;
+
+    if db_response.is_err() {
+        return "Invalid user credentials".to_string();
+    }
+
+    let user = db_response.unwrap();
+
+    let mut transaction = Transaction::new(user.wallet.get_public_key(), payload.recipient, payload.amount);
+    transaction.signature = Some(user.wallet.create_signature(&transaction));
+
+    state.mempool.lock().await.push(transaction);
+
+    println!("Transaction added to mempool.");
 
     "Received".to_string()
 }

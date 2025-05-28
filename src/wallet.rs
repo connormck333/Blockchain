@@ -25,7 +25,10 @@ impl Wallet {
         }
     }
 
-    pub fn load(private_key: SecretKey, public_key: PublicKey, address: String) -> Self {
+    pub fn load(private_key_str: String, public_key_str: String, address: String) -> Self {
+        let private_key = Self::private_key_from_hex(&private_key_str);
+        let public_key = Self::public_key_from_hex(&public_key_str);
+
         Self {
             private_key,
             public_key,
@@ -67,5 +70,18 @@ impl Wallet {
 
     pub fn get_private_key(&self) -> String {
         hex::encode(self.private_key.secret_bytes())
+    }
+
+    pub fn public_key_from_hex(hex_str: &str) -> PublicKey {
+        let bytes = hex::decode(hex_str).map_err(|_| secp256k1::Error::InvalidPublicKey).unwrap();
+
+        PublicKey::from_slice(&bytes).expect(&format!("Invalid public key: {}", hex_str))
+    }
+
+    pub fn private_key_from_hex(hex_str: &str) -> SecretKey {
+        let bytes = hex::decode(hex_str).unwrap();
+        let key_bytes: [u8; 32] = bytes.try_into().map_err(|_| anyhow::anyhow!("Invalid key length")).unwrap();
+
+        SecretKey::from_byte_array(key_bytes).expect("Invalid private key")
     }
 }

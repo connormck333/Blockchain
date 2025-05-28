@@ -36,4 +36,8 @@ impl Node {
             false
         }
     }
+
+    pub async fn delete_txs_from_mempool(&mut self, transactions: &Vec<Transaction>) {
+        self.mempool.lock().await.retain(|tx| !transactions.contains(tx));
+    }
 }

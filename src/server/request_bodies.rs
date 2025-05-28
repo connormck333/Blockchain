@@ -8,6 +8,8 @@ pub struct CreateUserData {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TransactionData {
-    recipient: String,
-    amount: u64
+    pub username: String,
+    pub password: String,
+    pub recipient: String,
+    pub amount: u64
 }

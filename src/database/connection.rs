@@ -4,6 +4,7 @@ use sqlx::{Executor, Pool, Postgres};
 use sqlx::migrate::MigrateDatabase;
 use sqlx::postgres::PgPoolOptions;
 use uuid::Uuid;
+use crate::database::structs::user::{convert_to_user, User, UserDB};
 use crate::wallet::Wallet;
 
 pub struct Connection {
@@ -66,6 +67,19 @@ impl Connection {
         .await?;
 
         Ok(())
+    }
+
+    pub async fn get_user(&self, username: &str, password: &str) -> anyhow::Result<User> {
+        let user_retrieved: UserDB = sqlx::query_as(
+            "SELECT username, private_key, public_key, address FROM USERS
+            WHERE username = $1 AND password = $2"
+        )
+        .bind(username)
+        .bind(password)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(convert_to_user(user_retrieved))
     }
 
     pub async fn drop_database(&self) {

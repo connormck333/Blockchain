@@ -166,7 +166,7 @@ impl Network {
 
                     if let Some(block) = mined_block {
                         node.lock().await.blockchain.add_block_without_validation(block.clone());
-                        node.lock().await.mempool.lock().await.clear();
+                        node.lock().await.delete_txs_from_mempool(&block.transactions).await;
 
                         let message = Message::BlockMined {
                             from: node_id,
