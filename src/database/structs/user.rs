@@ -8,6 +8,7 @@ pub struct User {
 #[derive(sqlx::FromRow, Debug)]
 pub struct UserDB {
     pub username: String,
+    pub password: String,
     pub public_key: String,
     pub private_key: String,
     pub address: String

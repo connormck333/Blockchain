@@ -5,7 +5,7 @@ use tokio::sync::Mutex;
 use args::args::Args;
 use crate::args::node_type::NodeType;
 use crate::network::network::Network;
-use crate::network::node::{Mempool, Node};
+use crate::network::node::Node;
 use crate::server::server::start_server;
 use crate::database::connection::Connection;
 
@@ -32,7 +32,6 @@ async fn main() -> Result<()> {
     let mut network = Network::new(args.clone());
     let node = Arc::new(Mutex::new(Node::new(&node_name, 5)));
     let mempool = node.lock().await.mempool.clone();
-    // let wallet = node.lock().await.wallet.clone();
     let db_connection = Arc::new(Connection::new(node.lock().await.id).await);
 
     network.connect(node.clone()).await?;

@@ -5,6 +5,7 @@ use sqlx::migrate::MigrateDatabase;
 use sqlx::postgres::PgPoolOptions;
 use uuid::Uuid;
 use crate::database::structs::user::{convert_to_user, User, UserDB};
+use crate::server::utils::verify_password;
 use crate::wallet::Wallet;
 
 pub struct Connection {
@@ -51,33 +52,40 @@ impl Connection {
         println!("Database \"{}\" created.", db_name);
     }
 
-    pub async fn create_user(&self, username: &str, password: &str, wallet: Wallet) -> anyhow::Result<()> {
-        sqlx::query(
+    pub async fn create_user(&self, username: &str, hashed_password: &str, wallet: Wallet) -> anyhow::Result<()> {
+        let db_response = sqlx::query(
             r#"
             INSERT INTO users (username, password, public_key, private_key, address)
             VALUES ($1, $2, $3, $4, $5)
             "#
         )
         .bind(username)
-        .bind(password)
+        .bind(hashed_password)
         .bind(wallet.get_public_key())
         .bind(wallet.get_private_key())
         .bind(wallet.address)
         .execute(&self.pool)
-        .await?;
+        .await;
+
+        if db_response.is_err() {
+            return Err(anyhow::anyhow!("Could not save user to db"));
+        }
 
         Ok(())
     }
 
     pub async fn get_user(&self, username: &str, password: &str) -> anyhow::Result<User> {
         let user_retrieved: UserDB = sqlx::query_as(
-            "SELECT username, private_key, public_key, address FROM USERS
-            WHERE username = $1 AND password = $2"
+            "SELECT * FROM USERS WHERE username = $1"
         )
         .bind(username)
-        .bind(password)
         .fetch_one(&self.pool)
         .await?;
+
+        if !verify_password(password, user_retrieved.password.as_str()) {
+            println!("Invalid credentials!");
+            return Err(anyhow::anyhow!("Invalid credentials"));
+        }
 
         Ok(convert_to_user(user_retrieved))
     }

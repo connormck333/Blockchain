@@ -5,6 +5,7 @@ use axum::extract::State;
 use axum::routing::post;
 use tokio::net::TcpListener;
 use crate::database::connection::Connection;
+use crate::server::utils::hash_password;
 use crate::network::node::Mempool;
 use crate::server::request_bodies::{CreateUserData, TransactionData};
 use crate::transaction::Transaction;
@@ -40,10 +41,14 @@ async fn create_user(
     assert!(payload.password.len() > 5);
 
     let new_wallet = Wallet::new();
+    let hashed_password = hash_password(payload.password.as_str());
+    if hashed_password.is_err() {
+        return "Error creating user".to_string();
+    }
 
     let db_response = state.database.create_user(
         payload.username.as_str(),
-        payload.password.as_str(),
+        hashed_password.unwrap().as_str(),
         new_wallet
     ).await;
 
