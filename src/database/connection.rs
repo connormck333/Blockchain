@@ -1,11 +1,11 @@
 use std::hash::{DefaultHasher, Hash, Hasher};
 use eframe::egui::TextBuffer;
-use sqlx::{Executor, Pool, Postgres};
+use sqlx::{Error, Executor, Pool, Postgres};
 use sqlx::migrate::MigrateDatabase;
 use sqlx::postgres::PgPoolOptions;
 use uuid::Uuid;
-use crate::database::structs::user::{convert_to_user, User, UserDB};
-use crate::server::utils::verify_password;
+use crate::database::structs::user::UserDB;
+use crate::database::structs::user_balance::UserBalance;
 use crate::wallet::Wallet;
 
 pub struct Connection {
@@ -52,42 +52,52 @@ impl Connection {
         println!("Database \"{}\" created.", db_name);
     }
 
-    pub async fn create_user(&self, username: &str, hashed_password: &str, wallet: Wallet) -> anyhow::Result<()> {
+    pub async fn create_user(&self, wallet: &Wallet) -> bool {
         let db_response = sqlx::query(
             r#"
-            INSERT INTO users (username, password, public_key, private_key, address)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO users (public_key, address, balance)
+            VALUES ($1, $2, 10)
             "#
         )
-        .bind(username)
-        .bind(hashed_password)
         .bind(wallet.get_public_key())
-        .bind(wallet.get_private_key())
-        .bind(wallet.address)
+        .bind(wallet.address.clone())
         .execute(&self.pool)
         .await;
 
         if db_response.is_err() {
-            return Err(anyhow::anyhow!("Could not save user to db"));
+            println!("DB ERROR: {}", db_response.unwrap_err());
+            return false
         }
 
-        Ok(())
+        db_response.is_ok()
     }
 
-    pub async fn get_user(&self, username: &str, password: &str) -> anyhow::Result<User> {
-        let user_retrieved: UserDB = sqlx::query_as(
-            "SELECT * FROM USERS WHERE username = $1"
+    pub async fn get_user(&self, public_key: String) -> anyhow::Result<Wallet> {
+        let user_retrieved: Result<UserDB, Error> = sqlx::query_as(
+            "SELECT * FROM USERS WHERE public_key = $1"
         )
-        .bind(username)
+        .bind(public_key)
         .fetch_one(&self.pool)
-        .await?;
+        .await;
 
-        if !verify_password(password, user_retrieved.password.as_str()) {
-            println!("Invalid credentials!");
-            return Err(anyhow::anyhow!("Invalid credentials"));
+        match user_retrieved {
+            Ok(user_wallet) => Ok(Wallet::load(user_wallet.private_key, user_wallet.public_key, user_wallet.address)),
+            Err(_) => Err(anyhow::anyhow!("User not found"))
         }
+    }
 
-        Ok(convert_to_user(user_retrieved))
+    pub async fn get_user_balance(&self, public_key: &String) -> anyhow::Result<u64> {
+        let balance_retrieved: Result<UserBalance, Error> = sqlx::query_as(
+            "SELECT balance FROM USERS WHERE public_key = $1"
+        )
+        .bind(public_key)
+        .fetch_one(&self.pool)
+        .await;
+
+        match balance_retrieved {
+            Ok(user_balance) => Ok(user_balance.balance as u64),
+            Err(_) => Err(anyhow::anyhow!("User not found"))
+        }
     }
 
     pub async fn drop_database(&self) {

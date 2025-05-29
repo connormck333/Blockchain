@@ -2,12 +2,15 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use axum::{Json, Router};
 use axum::extract::State;
+use axum::http::StatusCode;
+use axum::response::IntoResponse;
 use axum::routing::post;
 use tokio::net::TcpListener;
 use crate::database::connection::Connection;
-use crate::server::utils::hash_password;
+use crate::database::validator::validate_transaction;
 use crate::network::node::Mempool;
-use crate::server::request_bodies::{CreateUserData, TransactionData};
+use crate::server::request::transaction::TransactionRequest;
+use crate::server::response::create_user::CreateUserResponse;
 use crate::transaction::Transaction;
 use crate::wallet::Wallet;
 
@@ -34,48 +37,39 @@ pub async fn start_server(mempool: Mempool, database: Arc<Connection>) -> anyhow
 }
 
 async fn create_user(
-    State(state): State<ServerState>,
-    Json(payload): Json<CreateUserData>
-) -> String {
-    assert!(payload.username.len() > 5);
-    assert!(payload.password.len() > 5);
-
+    State(state): State<ServerState>
+) -> impl IntoResponse {
     let new_wallet = Wallet::new();
-    let hashed_password = hash_password(payload.password.as_str());
-    if hashed_password.is_err() {
-        return "Error creating user".to_string();
+
+    if state.database.create_user(&new_wallet).await {
+        return (
+            StatusCode::OK,
+            Json(CreateUserResponse::new(new_wallet))
+        ).into_response()
     }
 
-    let db_response = state.database.create_user(
-        payload.username.as_str(),
-        hashed_password.unwrap().as_str(),
-        new_wallet
-    ).await;
-
-    if db_response.is_err() {
-        return "Error creating user".to_string();
-    }
-
-    "User Created".to_string()
+    (StatusCode::INTERNAL_SERVER_ERROR, Json("There was an error.")).into_response()
 }
 
 async fn handle_transaction(
     State(state): State<ServerState>,
-    Json(payload): Json<TransactionData>
+    Json(payload): Json<TransactionRequest>
 ) -> String {
     let db_response = state.database.get_user(
-        payload.username.as_str(),
-        payload.password.as_str()
+        payload.sender_public_key.clone()
     ).await;
 
-    if db_response.is_err() {
-        return "Invalid user credentials".to_string();
+    let user_wallet = match db_response {
+        Ok(user) => user,
+        Err(e) => return e.to_string()
+    };
+
+    let transaction = Transaction::load(payload);
+    user_wallet.verify_signature(&transaction);
+
+    if !validate_transaction(&state.database, &transaction).await {
+        return "Insufficient funds".to_string();
     }
-
-    let user = db_response.unwrap();
-
-    let mut transaction = Transaction::new(user.wallet.get_public_key(), payload.recipient, payload.amount);
-    transaction.signature = Some(user.wallet.create_signature(&transaction));
 
     state.mempool.lock().await.push(transaction);
 

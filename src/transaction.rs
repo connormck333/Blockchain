@@ -1,8 +1,10 @@
+use std::str::FromStr;
 use chrono::Utc;
 use secp256k1::ecdsa::Signature;
 use serde::{Deserialize, Serialize};
 use serde_json::to_string;
 use sha2::{Digest, Sha256};
+use crate::server::request::transaction::TransactionRequest;
 use crate::utils::calculate_hash;
 
 #[derive(PartialEq, Serialize, Deserialize, Clone, Debug)]
@@ -32,6 +34,17 @@ impl Transaction {
         transaction.id = transaction.create_hash();
 
         transaction
+    }
+
+    pub fn load(transaction_data: TransactionRequest) -> Self {
+        Self {
+            sender: transaction_data.sender_public_key,
+            recipient: transaction_data.recipient_address,
+            amount: transaction_data.amount,
+            timestamp: transaction_data.timestamp,
+            id: transaction_data.id,
+            signature: Some(Signature::from_str(transaction_data.signature.as_str()).unwrap())
+        }
     }
 
     fn create_hash(&self) -> String {
