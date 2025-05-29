@@ -1,5 +1,5 @@
 target
-.gitignore
+node/.gitignore
 .git
 Dockerfile
 .idea

@@ -1,3 +1,9 @@
-/target
 .idea/
-.env
+.DS_Store
+
+node/.idea
+node/.env
+node/target/
+
+wallet/.idea
+wallet/target/
