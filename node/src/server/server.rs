@@ -2,16 +2,12 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use axum::{Json, Router};
 use axum::extract::State;
-use axum::http::StatusCode;
-use axum::response::IntoResponse;
 use axum::routing::post;
 use tokio::net::TcpListener;
 use crate::database::validator::Validator;
 use crate::network::node::Mempool;
 use crate::server::request::transaction::TransactionRequest;
-use crate::server::response::create_user::CreateUserResponse;
 use crate::transaction::Transaction;
-use crate::wallet::Wallet;
 
 #[derive(Clone)]
 struct ServerState {
@@ -22,7 +18,6 @@ struct ServerState {
 pub async fn start_server(mempool: Mempool, validator: Arc<Validator>) -> anyhow::Result<()> {
     let state = ServerState { mempool, validator };
     let app = Router::new()
-        .route("/create-user", post(create_user))
         .route("/transaction", post(handle_transaction))
         .with_state(state);
 
@@ -33,21 +28,6 @@ pub async fn start_server(mempool: Mempool, validator: Arc<Validator>) -> anyhow
     axum::serve(listener, app).await?;
 
     Ok(())
-}
-
-async fn create_user(
-    State(state): State<ServerState>
-) -> impl IntoResponse {
-    let new_wallet = Wallet::new();
-
-    if state.validator.db_connection.create_user(&new_wallet).await {
-        return (
-            StatusCode::OK,
-            Json(CreateUserResponse::new(new_wallet))
-        ).into_response()
-    }
-
-    (StatusCode::INTERNAL_SERVER_ERROR, Json("There was an error.")).into_response()
 }
 
 async fn handle_transaction(

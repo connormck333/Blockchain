@@ -45,7 +45,7 @@ impl KeysModal {
 
                 ui.horizontal(|ui| {
                     if ui.button("Confirm").clicked() {
-                        *wallet = Some(Wallet::new(self.private_key.clone(), self.public_key.clone(), self.address.clone()));
+                        *wallet = Some(Wallet::load(self.private_key.clone(), self.public_key.clone(), self.address.clone()));
                         self.close_modal(visible);
                     }
                     ui.add_space(5.0);

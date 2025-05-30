@@ -1,8 +1,7 @@
-use ripemd::{Digest};
+use ripemd::{Digest, Ripemd160};
 use secp256k1::{Message, Secp256k1, SecretKey, PublicKey};
-use secp256k1::ecdsa::Signature;
 use secp256k1::rand::rng;
-use sha2::{Digest as ShaDigest};
+use sha2::{Digest as ShaDigest, Sha256};
 use crate::transaction::Transaction;
 
 #[derive(Clone)]
@@ -26,7 +25,19 @@ impl Default for Wallet {
 }
 
 impl Wallet {
-    pub fn new(private_key_str: String, public_key_str: String, address: String) -> Self {
+    pub fn new() -> Self {
+        let secp = Secp256k1::new();
+        let (private_key, public_key) = Secp256k1::generate_keypair(&secp, &mut rng());
+        let address = Self::create_address_hash(&public_key);
+
+        Wallet {
+            private_key,
+            public_key,
+            address
+        }
+    }
+
+    pub fn load(private_key_str: String, public_key_str: String, address: String) -> Self {
         let private_key = Self::private_key_from_hex(&private_key_str);
         let public_key = Self::public_key_from_hex(&public_key_str);
 
@@ -35,6 +46,17 @@ impl Wallet {
             public_key,
             address
         }
+    }
+
+    fn create_address_hash(public_key: &PublicKey) -> String {
+        let mut sha_hasher = Sha256::new();
+        sha_hasher.update(public_key.serialize());
+        let sha_result = sha_hasher.finalize();
+
+        let mut ripemd_hasher = Ripemd160::new();
+        ripemd_hasher.update(sha_result);
+
+        hex::encode(ripemd_hasher.finalize())
     }
 
     pub fn create_signature(&self, transaction: &mut Transaction) {

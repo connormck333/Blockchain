@@ -55,7 +55,7 @@ impl Connection {
         let db_response = sqlx::query(
             r#"
             INSERT INTO users (public_key, address, balance)
-            VALUES ($1, $2, 10)
+            VALUES ($1, $2, 0)
             "#
         )
         .bind(wallet.get_public_key())

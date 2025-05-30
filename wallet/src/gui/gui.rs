@@ -26,9 +26,17 @@ impl eframe::App for Gui {
                     ui.add_space(5.0);
 
                     if self.wallet.is_none() {
-                        if ui.button("Submit keys").clicked() {
-                            self.keys_modal_visible = true;
-                        }
+                        ui.horizontal(|ui| {
+                            if ui.button("Load keys").clicked() {
+                                self.keys_modal_visible = true;
+                            }
+
+                            ui.add_space(3.0);
+
+                            if ui.button("Create new keys").clicked() {
+                                self.wallet = Some(Wallet::new());
+                            }
+                        });
                     } else {
                         self.separator(ui);
                         self.key_details(ui);
@@ -48,7 +56,6 @@ impl eframe::App for Gui {
 }
 
 impl Gui {
-
     fn key_details(&mut self, ui: &mut egui::Ui) {
         let wallet_clone = self.wallet.clone().unwrap();
         ui.label(format!("Public key: {}", wallet_clone.get_public_key()));
