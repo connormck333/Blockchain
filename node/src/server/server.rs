@@ -65,7 +65,9 @@ async fn handle_transaction(
     };
 
     let transaction = Transaction::load(payload);
-    user_wallet.verify_signature(&transaction);
+    if !user_wallet.verify_signature(&transaction) {
+        return "Invalid signature".to_string();
+    }
 
     if !validate_transaction(&state.database, &transaction).await {
         return "Insufficient funds".to_string();

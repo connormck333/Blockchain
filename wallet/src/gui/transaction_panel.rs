@@ -19,6 +19,7 @@ impl TransactionPanel {
                     "sender_public_key": tx.sender,
                     "recipient_address": tx.recipient,
                     "id": tx.id,
+                    "timestamp": tx.timestamp,
                     "amount": tx.amount,
                     "signature": signature
                 });

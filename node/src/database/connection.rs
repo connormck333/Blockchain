@@ -73,6 +73,7 @@ impl Connection {
     }
 
     pub async fn get_user(&self, public_key: String) -> anyhow::Result<Wallet> {
+        println!("Finding user with key: {}", public_key);
         let user_retrieved: Result<UserDB, Error> = sqlx::query_as(
             "SELECT * FROM USERS WHERE public_key = $1"
         )
@@ -81,8 +82,11 @@ impl Connection {
         .await;
 
         match user_retrieved {
-            Ok(user_wallet) => Ok(Wallet::load(user_wallet.private_key, user_wallet.public_key, user_wallet.address)),
-            Err(_) => Err(anyhow::anyhow!("User not found"))
+            Ok(user_wallet) => Ok(Wallet::load(user_wallet.public_key, user_wallet.address)),
+            Err(e) => {
+                println!("{}", e.to_string());
+                Err(anyhow::anyhow!("User not found"))
+            }
         }
     }
 
@@ -95,8 +99,14 @@ impl Connection {
         .await;
 
         match balance_retrieved {
-            Ok(user_balance) => Ok(user_balance.balance as u64),
-            Err(_) => Err(anyhow::anyhow!("User not found"))
+            Ok(user_balance) => {
+                println!("User balance found: {}", user_balance.balance);
+                Ok(user_balance.balance as u64)
+            },
+            Err(e) => {
+                println!("{}", e.to_string());
+                Err(anyhow::anyhow!("User not found"))
+            }
         }
     }
 
