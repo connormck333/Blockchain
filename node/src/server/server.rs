@@ -6,8 +6,7 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::routing::post;
 use tokio::net::TcpListener;
-use crate::database::connection::Connection;
-use crate::database::validator::validate_transaction;
+use crate::database::validator::Validator;
 use crate::network::node::Mempool;
 use crate::server::request::transaction::TransactionRequest;
 use crate::server::response::create_user::CreateUserResponse;
@@ -17,11 +16,11 @@ use crate::wallet::Wallet;
 #[derive(Clone)]
 struct ServerState {
     mempool: Mempool,
-    database: Arc<Connection>
+    validator: Arc<Validator>
 }
 
-pub async fn start_server(mempool: Mempool, database: Arc<Connection>) -> anyhow::Result<()> {
-    let state = ServerState { mempool, database };
+pub async fn start_server(mempool: Mempool, validator: Arc<Validator>) -> anyhow::Result<()> {
+    let state = ServerState { mempool, validator };
     let app = Router::new()
         .route("/create-user", post(create_user))
         .route("/transaction", post(handle_transaction))
@@ -41,7 +40,7 @@ async fn create_user(
 ) -> impl IntoResponse {
     let new_wallet = Wallet::new();
 
-    if state.database.create_user(&new_wallet).await {
+    if state.validator.db_connection.create_user(&new_wallet).await {
         return (
             StatusCode::OK,
             Json(CreateUserResponse::new(new_wallet))
@@ -55,7 +54,7 @@ async fn handle_transaction(
     State(state): State<ServerState>,
     Json(payload): Json<TransactionRequest>
 ) -> String {
-    let db_response = state.database.get_user(
+    let db_response = state.validator.db_connection.get_user(
         payload.sender_public_key.clone()
     ).await;
 
@@ -69,7 +68,7 @@ async fn handle_transaction(
         return "Invalid signature".to_string();
     }
 
-    if !validate_transaction(&state.database, &transaction).await {
+    if !state.validator.validate_transaction(&transaction).await {
         return "Insufficient funds".to_string();
     }
 

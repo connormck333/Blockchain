@@ -21,7 +21,7 @@ impl eframe::App for Gui {
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::Frame::default()
                 .show(ui, |ui| {
-                    ui.set_min_width(600.0);
+                    ui.set_min_width(800.0);
                     ui.heading("Your personal blockchain wallet");
                     ui.add_space(5.0);
 

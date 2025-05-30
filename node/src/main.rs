@@ -8,8 +8,8 @@ use crate::network::network::Network;
 use crate::network::node::Node;
 use crate::server::server::start_server;
 use crate::database::connection::Connection;
+use crate::database::validator::Validator;
 
-#[macro_use]
 extern crate sqlx;
 
 mod block;
@@ -33,12 +33,13 @@ async fn main() -> Result<()> {
     let node = Arc::new(Mutex::new(Node::new(&node_name, 5)));
     let mempool = node.lock().await.mempool.clone();
     let db_connection = Arc::new(Connection::new(node.lock().await.id).await);
+    let validator = Arc::new(Validator::new(db_connection.clone()));
 
-    network.connect(node.clone()).await?;
+    network.connect(node.clone(), validator.clone()).await?;
 
     if args.node_type == NodeType::FULL {
         tokio::select! {
-            _ = start_server(mempool.clone(), db_connection.clone()) => {
+            _ = start_server(mempool.clone(), validator.clone()) => {
                 println!("Server shutting down...");
             }
             _ = tokio::signal::ctrl_c() => {

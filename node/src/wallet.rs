@@ -1,6 +1,5 @@
 use ripemd::{Ripemd160, Digest};
 use secp256k1::{Message, Secp256k1, SecretKey, PublicKey};
-use secp256k1::ecdsa::Signature;
 use secp256k1::rand::rng;
 use sha2::{Sha256, Digest as ShaDigest};
 use crate::transaction::Transaction;

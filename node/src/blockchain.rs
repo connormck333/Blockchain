@@ -49,9 +49,6 @@ impl Blockchain {
         self.chain.push(new_block);
     }
 
-    pub fn get_chain(&self) -> &Vec<Block> {
-        &self.chain
-    }
 
     pub fn get_latest_block(&self) -> &Block {
         self.chain.last().unwrap()

@@ -14,6 +14,7 @@ use crate::args::args::Args;
 use crate::network::message_handler::handle_incoming_message;
 use crate::network::node::Node;
 use crate::args::command::Command;
+use crate::database::validator::Validator;
 use crate::utils::mine_block;
 
 pub struct Network {
@@ -26,7 +27,6 @@ pub struct Network {
 }
 
 impl Network {
-
     pub fn new(args: Args) -> Self {
         let (topic_id, nodes) = Self::get_topic_and_nodes(args.clone());
 
@@ -40,7 +40,7 @@ impl Network {
         }
     }
 
-    pub async fn connect(&mut self, node: Arc<Mutex<Node>>) -> anyhow::Result<()> {
+    pub async fn connect(&mut self, node: Arc<Mutex<Node>>, validator: Arc<Validator>) -> anyhow::Result<()> {
         let endpoint = self.setup_endpoint().await;
         let (sender, receiver) = self.join_network(&endpoint).await;
 
@@ -50,7 +50,7 @@ impl Network {
 
         Self::spawn_mining_loop(sender.clone(), node.clone(), self.mining_active.clone(), endpoint.node_id()).await?;
 
-        tokio::spawn(Self::subscribe_loop(receiver, node.clone(), self.mining_active.clone()));
+        tokio::spawn(Self::subscribe_loop(receiver, node.clone(), self.mining_active.clone(), validator.clone()));
 
         Ok(())
     }
@@ -122,11 +122,16 @@ impl Network {
         println!("> Sent genesis block message");
     }
 
-    async fn subscribe_loop(mut receiver: GossipReceiver, node: Arc<Mutex<Node>>, mining_flag: Arc<AtomicBool>) -> anyhow::Result<()> {
+    async fn subscribe_loop(
+        mut receiver: GossipReceiver,
+        node: Arc<Mutex<Node>>,
+        mining_flag: Arc<AtomicBool>,
+        validator: Arc<Validator>
+    ) -> anyhow::Result<()> {
         loop {
             match receiver.try_next().await {
                 Ok(Some(Event::Gossip(GossipEvent::Received(msg)))) => {
-                    handle_incoming_message(node.clone(), mining_flag.clone(), msg).await;
+                    handle_incoming_message(node.clone(), mining_flag.clone(), validator.clone(), msg).await;
                 }
                 Ok(Some(event)) => {
                     println!("Ignored event: {:?}", event);

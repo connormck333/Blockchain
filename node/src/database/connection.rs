@@ -1,6 +1,5 @@
 use std::hash::{DefaultHasher, Hash, Hasher};
-use eframe::egui::TextBuffer;
-use sqlx::{Error, Executor, Pool, Postgres};
+use sqlx::{Error, Pool, Postgres};
 use sqlx::migrate::MigrateDatabase;
 use sqlx::postgres::PgPoolOptions;
 use uuid::Uuid;
