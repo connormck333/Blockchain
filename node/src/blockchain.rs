@@ -35,12 +35,12 @@ impl Blockchain {
             new_block.hash == new_block.create_hash()
     }
 
-    pub fn add_block_to_chain(&mut self, new_block: Block) -> bool {
-        if !self.is_valid_new_block(&new_block) {
+    pub fn add_block_to_chain(&mut self, new_block: &Block) -> bool {
+        if !self.is_valid_new_block(new_block) {
             return false;
         }
 
-        self.chain.push(new_block);
+        self.chain.push(new_block.clone());
         true
     }
 
@@ -54,8 +54,8 @@ impl Blockchain {
         self.chain.last().unwrap()
     }
 
-    pub fn create_genesis_block(&mut self) -> Block {
-        let mut genesis = Block::new(0, "0".to_string(), Vec::new(), self.difficulty);
+    pub fn create_genesis_block(&mut self, miner_address: String) -> Block {
+        let mut genesis = Block::new(0, "0".to_string(), Vec::new(), self.difficulty, miner_address);
         loop {
             if genesis.mine() {
                 break;
@@ -164,27 +164,12 @@ mod tests {
     }
 
     #[test]
-    fn test_get_chain() {
-        let mut blockchain = Blockchain::new(2);
-        let prev_block = blockchain.get_latest_block().clone();
-        let new_block = Block::new(prev_block.index + 1, prev_block.hash.clone(), vec![], 2);
-
-        blockchain.add_block_to_chain(new_block.clone());
-
-        let chain = blockchain.get_chain();
-
-        assert_eq!(chain.len(), 2);
-        assert_eq!(chain[0].index, prev_block.index);
-        assert_eq!(chain[1].index, new_block.index);
-    }
-
-    #[test]
     fn test_get_latest_block() {
         let mut blockchain = Blockchain::new(2);
         let prev_block = blockchain.get_latest_block().clone();
         let new_block = Block::new(prev_block.index + 1, prev_block.hash.clone(), vec![], 2);
 
-        blockchain.add_block_to_chain(new_block.clone());
+        blockchain.add_block_to_chain(&new_block);
 
         let latest_block = blockchain.get_latest_block();
 

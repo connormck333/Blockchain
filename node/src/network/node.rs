@@ -4,6 +4,7 @@ use uuid::Uuid;
 use crate::block::Block;
 use crate::blockchain::Blockchain;
 use crate::transaction::Transaction;
+use crate::wallet::Wallet;
 
 pub type Mempool = Arc<Mutex<Vec<Transaction>>>;
 
@@ -12,6 +13,7 @@ pub struct Node {
     pub name: String,
     pub blockchain: Blockchain,
     pub mempool: Mempool,
+    pub wallet: Wallet,
     pub id: Uuid,
     pub difficulty: usize
 }
@@ -22,13 +24,14 @@ impl Node {
             name: name.to_string(),
             blockchain: Blockchain::new(difficulty),
             mempool: Arc::new(Mutex::new(Vec::new())),
+            wallet: Wallet::new(),
             id: Uuid::new_v4(),
             difficulty
         }
     }
 
-    pub fn receive_block(&mut self, block: Block) -> bool {
-        if self.blockchain.add_block_to_chain(block.clone()) {
+    pub fn receive_block(&mut self, block: &Block) -> bool {
+        if self.blockchain.add_block_to_chain(&block) {
             println!("{} accepted new block", self.name);
             true
         } else {

@@ -6,7 +6,10 @@ use iroh_gossip::net::Message as IrohMessage;
 use crate::network::message::Message;
 use tokio::sync::Mutex;
 use crate::block::Block;
+use crate::constants::{MINING_REWARD_AMOUNT, MINING_REWARD_DELAY};
+use crate::database::connection::Connection;
 use crate::database::validator::Validator;
+use crate::mining_reward::MiningReward;
 use crate::network::node::Node;
 
 pub async fn handle_incoming_message(node: Arc<Mutex<Node>>, mining_flag: Arc<AtomicBool>, validator: Arc<Validator>, msg: IrohMessage) {
@@ -43,10 +46,27 @@ async fn on_block_received(node: Arc<Mutex<Node>>, mining_flag: Arc<AtomicBool>,
         }
     }
 
-    if node.lock().await.receive_block(block) {
+    if node.lock().await.receive_block(&block) {
         mining_flag.store(false, Ordering::Relaxed);
         println!("Valid block received from {}... Stopping mining", from);
+
+        let mining_reward = MiningReward::new(MINING_REWARD_AMOUNT, block.miner_address, block.index + MINING_REWARD_DELAY);
+        validator.db_connection.save_mining_reward(mining_reward).await;
+        apply_mining_reward(validator.db_connection.clone(), block.index);
     } else {
         println!("Invalid block received from {}... Continuing to mine", from);
     }
+}
+
+fn apply_mining_reward(db_connection: Arc<Connection>, block_index: u64) {
+    tokio::spawn(async move {
+        println!("Applying mining reward for inbound block...");
+        let db_response = db_connection.get_mining_reward_at_block_index(block_index).await;
+        if db_response.is_err() {
+            return;
+        }
+
+        let recipient_address = db_response.unwrap().recipient_address;
+        db_connection.increment_user_balance(recipient_address, block_index).await;
+    });
 }

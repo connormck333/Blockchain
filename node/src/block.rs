@@ -12,32 +12,35 @@ use crate::utils::calculate_hash;
 
 #[derive(Serialize, Deserialize)]
 struct HashlessBlock {
-    pub index: u64,
-    pub timestamp: i64,
-    pub transactions: Vec<Transaction>,
-    pub previous_block_hash: String,
-    pub nonce: u64,
-    pub difficulty: usize,
+    index: u64,
+    timestamp: i64,
+    transactions: Vec<Transaction>,
+    miner_address: String,
+    previous_block_hash: String,
+    nonce: u64,
+    difficulty: usize,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Block {
     pub index: u64,
     pub timestamp: i64,
     pub transactions: Vec<Transaction>,
     pub previous_block_hash: String,
+    pub miner_address: String,
     pub nonce: u64,
     pub difficulty: usize,
     pub hash: String
 }
 
 impl Block {
-    pub fn new(index: u64, previous_block_hash: String, transactions: Vec<Transaction>, difficulty: usize) -> Self {
+    pub fn new(index: u64, previous_block_hash: String, transactions: Vec<Transaction>, difficulty: usize, miner_address: String) -> Self {
         Self {
             index,
             timestamp: Utc::now().timestamp(),
             transactions,
             previous_block_hash,
+            miner_address,
             nonce: 0,
             difficulty,
             hash: String::new()
@@ -63,6 +66,7 @@ impl Block {
             timestamp: self.timestamp,
             transactions: self.transactions.clone(),
             previous_block_hash: self.previous_block_hash.clone(),
+            miner_address: self.miner_address.clone(),
             nonce: self.nonce,
             difficulty: self.difficulty
         };
@@ -86,19 +90,20 @@ mod tests {
     
     #[test]
     fn test_constructor() {
-        let new_block = Block::new(0, "previousBlockHash".to_string(), vec![], 0);
+        let new_block = Block::new(0, "previousBlockHash".to_string(), vec![], 0, "minerAddress".to_string());
 
         assert_eq!(new_block.difficulty, 0);
         assert!(new_block.transactions.is_empty());
         assert_eq!(new_block.index, 0);
         assert_eq!(new_block.previous_block_hash, "previousBlockHash".to_string());
+        assert_eq!(new_block.miner_address, "minerAddress".to_string());
         assert_eq!(new_block.hash, "");
         assert_eq!(new_block.nonce, 0);
     }
 
     #[test]
     fn test_mine() {
-        let mut new_block = Block::new(0, "previousBlockHash".to_string(), vec![], 3);
+        let mut new_block = Block::new(0, "previousBlockHash".to_string(), vec![], 3, "minerAddress".to_string());
 
         new_block.mine();
 

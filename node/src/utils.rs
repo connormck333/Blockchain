@@ -18,10 +18,11 @@ pub fn mine_block(
     difficulty: usize,
     previous_hash: String,
     block_index: u64,
-    cancel_flag: Arc<AtomicBool>
+    cancel_flag: Arc<AtomicBool>,
+    node_address: String
 ) -> Option<Block> {
     println!("-----> Transaction count picked up for mining: {}", transactions.len());
-    let mut block = Block::new(block_index, previous_hash, transactions, difficulty);
+    let mut block = Block::new(block_index, previous_hash, transactions, difficulty, node_address);
 
     while cancel_flag.load(Ordering::Relaxed) == true {
         if block.mine() {

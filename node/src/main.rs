@@ -9,7 +9,6 @@ use crate::network::node::Node;
 use crate::server::server::start_server;
 use crate::database::connection::Connection;
 use crate::database::validator::Validator;
-use crate::wallet::Wallet;
 
 extern crate sqlx;
 
@@ -22,6 +21,8 @@ mod network;
 mod server;
 mod args;
 mod database;
+mod mining_reward;
+mod constants;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -35,9 +36,8 @@ async fn main() -> Result<()> {
     let mempool = node.lock().await.mempool.clone();
     let db_connection = Arc::new(Connection::new(node.lock().await.id).await);
     let validator = Arc::new(Validator::new(db_connection.clone()));
-    let node_wallet = Wallet::new();
 
-    db_connection.create_user(&node_wallet).await;
+    db_connection.create_user(&node.lock().await.wallet).await;
     network.connect(node.clone(), validator.clone()).await?;
 
     if args.node_type == NodeType::FULL {

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::block::Block;
 use crate::transaction::Transaction;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub enum Message {
     BlockMined { from: NodeId, block: Block },
     TransactionCreated { from: NodeId, transaction: Transaction },
