@@ -3,6 +3,7 @@ use sqlx::{Error, Pool, Postgres};
 use sqlx::migrate::MigrateDatabase;
 use sqlx::postgres::PgPoolOptions;
 use uuid::Uuid;
+use crate::constants::MINING_REWARD_AMOUNT;
 use crate::database::structs::recipient_address::RecipientAddress;
 use crate::database::structs::user_balance::UserBalance;
 use crate::mining_reward::MiningReward;
@@ -101,7 +102,7 @@ impl Connection {
         false
     }
 
-    pub async fn increment_user_balance(&self, user_address: String, amount: u64) -> bool {
+    pub async fn update_user_balance(&self, user_address: String, amount: i64) -> bool {
         let db_response = sqlx::query(
             r#"
             UPDATE users
@@ -109,7 +110,7 @@ impl Connection {
             WHERE address = $2
             "#
         )
-        .bind(amount as i64)
+        .bind(amount)
         .bind(user_address)
         .execute(&self.pool)
         .await;
@@ -159,6 +160,15 @@ impl Connection {
                 println!("ERROR retrieving mining reward: {}", e);
                 Err(anyhow::anyhow!("Mining reward not found"))
             }
+        }
+    }
+
+    pub async fn create_user_and_update_balance(&self, recipient_address: String, amount: i64) {
+        let user_exists = self.create_user_if_not_exists(&recipient_address, MINING_REWARD_AMOUNT).await;
+        if user_exists {
+            // Increment user balance if already exists in db
+            // Otherwise, the balance will be saved on user creation
+            self.update_user_balance(recipient_address, amount).await;
         }
     }
 

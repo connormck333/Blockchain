@@ -1,24 +1,20 @@
 use std::str::FromStr;
 use std::sync::{Arc};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
 use tokio::sync::Mutex;
 use futures_lite::StreamExt;
 use iroh::{Endpoint, NodeAddr, NodeId};
 use iroh::protocol::Router;
 use iroh_gossip::net::{Event, Gossip, GossipEvent, GossipReceiver, GossipSender};
 use iroh_gossip::proto::TopicId;
-use crate::block::Block;
 use crate::network::message::Message;
 use crate::network::ticket::Ticket;
 use crate::args::args::Args;
 use crate::network::message_handler::handle_incoming_message;
 use crate::network::node::Node;
 use crate::args::command::Command;
-use crate::constants::{MINING_REWARD_AMOUNT, MINING_REWARD_DELAY};
-use crate::database::connection::Connection;
 use crate::database::validator::Validator;
-use crate::mining_reward::MiningReward;
-use crate::utils::mine_block;
+use crate::mining_tasks::spawn_mining_loop;
 
 pub struct Network {
     connected_nodes: Vec<NodeAddr>,
@@ -51,7 +47,7 @@ impl Network {
             self.send_genesis_block(&sender, &node, endpoint.node_id()).await;
         }
 
-        Self::spawn_mining_loop(sender.clone(), node.clone(), self.mining_active.clone(), validator.db_connection.clone(), endpoint.node_id()).await;
+        spawn_mining_loop(sender.clone(), node.clone(), self.mining_active.clone(), validator.db_connection.clone(), endpoint.node_id());
 
         tokio::spawn(Self::subscribe_loop(receiver, node.clone(), self.mining_active.clone(), validator.clone()));
 
@@ -152,60 +148,6 @@ impl Network {
         }
 
         Ok(())
-    }
-
-    async fn spawn_mining_loop(
-        sender: GossipSender,
-        node: Arc<Mutex<Node>>,
-        mining_flag: Arc<AtomicBool>,
-        db_connection: Arc<Connection>,
-        node_id: NodeId
-    ) {
-        tokio::spawn(async move {
-            loop {
-                if node.lock().await.blockchain.get_length() > 0 {
-                    let mined_block: Option<Block> = tokio::task::spawn_blocking({
-                        let cancel_flag = mining_flag.clone();
-                        let node_inner = node.clone();
-                        let transactions = node_inner.lock().await.mempool.lock().await.clone();
-                        let difficulty = node_inner.lock().await.difficulty.clone();
-                        let blockchain_clone = node_inner.lock().await.blockchain.clone();
-                        let node_address = node_inner.lock().await.wallet.address.clone();
-                        move || mine_block(
-                            transactions,
-                            difficulty,
-                            blockchain_clone.get_latest_block().clone().hash,
-                            blockchain_clone.get_length() as u64,
-                            cancel_flag,
-                            node_address
-                        )
-                    }).await.unwrap();
-
-                    if let Some(block) = mined_block {
-                        node.lock().await.blockchain.add_block_without_validation(block.clone());
-                        node.lock().await.delete_txs_from_mempool(&block.transactions).await;
-
-                        let node_address = node.lock().await.wallet.address.clone();
-                        let mining_reward = MiningReward::new(
-                            MINING_REWARD_AMOUNT,
-                            node_address,
-                            block.index + MINING_REWARD_DELAY
-                        );
-                        db_connection.save_mining_reward(mining_reward).await;
-
-                        let message = Message::BlockMined {
-                            from: node_id,
-                            block
-                        };
-                        let bytes = message.to_vec().into();
-                        let _ = sender.broadcast(bytes).await;
-                        println!("Sent mined block");
-                    } else {
-                        mining_flag.store(true, Ordering::Relaxed);
-                    }
-                }
-            }
-        });
     }
 
     async fn send_message(message: Message, sender: &GossipSender) {

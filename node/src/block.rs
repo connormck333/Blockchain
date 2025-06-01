@@ -1,9 +1,10 @@
 use std::fmt::Display;
 use chrono::Utc;
+use hex::encode;
 use serde::{Serialize, Deserialize};
 use serde_json::to_string;
+use sha2::{Digest, Sha256};
 use crate::transaction::Transaction;
-use crate::utils::calculate_hash;
 
 /*
     Each block in the blockchain is a digital container
@@ -73,7 +74,15 @@ impl Block {
 
         let serialized: String = to_string(&hashless_block).expect("Failed to serialize block");
 
-        calculate_hash(serialized)
+        Self::calculate_hash(serialized)
+    }
+
+    pub fn calculate_hash(serialized_data: String) -> String {
+        let mut hasher = Sha256::new();
+        hasher.update(serialized_data.as_bytes());
+        let result = hasher.finalize();
+
+        encode(result)
     }
 }
 

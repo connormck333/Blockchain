@@ -6,7 +6,6 @@ use serde_json::to_string;
 use sha2::{Digest, Sha256};
 use hex::encode;
 
-
 #[derive(PartialEq, Serialize, Deserialize, Clone, Debug)]
 pub struct Transaction {
     pub sender: String,

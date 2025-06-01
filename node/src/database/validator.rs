@@ -18,10 +18,10 @@ impl Validator {
         let sender_address = Wallet::derive_address_hash_from_string(&transaction.sender);
         match self.db_connection.get_user_balance(&sender_address).await {
             Ok(user_balance) => {
-                println!("User balance: {}", user_balance);
+                println!("Transaction user balance valid: {}", user_balance >= transaction.amount);
                 user_balance >= transaction.amount
             },
-            Err(_) => false,
+            Err(_) => false
         }
     }
 }

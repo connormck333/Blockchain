@@ -15,7 +15,7 @@ extern crate sqlx;
 mod block;
 mod transaction;
 mod blockchain;
-mod utils;
+mod mining_tasks;
 mod wallet;
 mod network;
 mod server;
@@ -36,6 +36,11 @@ async fn main() -> Result<()> {
     let mempool = node.lock().await.mempool.clone();
     let db_connection = Arc::new(Connection::new(node.lock().await.id).await);
     let validator = Arc::new(Validator::new(db_connection.clone()));
+
+    let wallet = node.lock().await.wallet.clone();
+    println!("Wallet private key: {}", wallet.get_private_key());
+    println!("Wallet public key: {}", wallet.get_public_key());
+    println!("Wallet address: {}", wallet.address);
 
     db_connection.create_user(node.lock().await.clone().wallet.address, 0).await;
     network.connect(node.clone(), validator.clone()).await?;
