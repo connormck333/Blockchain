@@ -4,10 +4,8 @@ use sqlx::migrate::MigrateDatabase;
 use sqlx::postgres::PgPoolOptions;
 use uuid::Uuid;
 use crate::database::structs::recipient_address::RecipientAddress;
-use crate::database::structs::user::UserDB;
 use crate::database::structs::user_balance::UserBalance;
 use crate::mining_reward::MiningReward;
-use crate::wallet::Wallet;
 
 pub struct Connection {
     pub pool: Pool<Postgres>,
@@ -53,15 +51,15 @@ impl Connection {
         println!("Database \"{}\" created.", db_name);
     }
 
-    pub async fn create_user(&self, wallet: &Wallet) -> bool {
+    pub async fn create_user(&self, user_address: String, balance: u64) -> bool {
         let db_response = sqlx::query(
             r#"
-            INSERT INTO users (public_key, address, balance)
-            VALUES ($1, $2, 0)
+            INSERT INTO users (address, balance)
+            VALUES ($1, $2)
             "#
         )
-        .bind(wallet.get_public_key())
-        .bind(wallet.address.clone())
+        .bind(user_address)
+        .bind(balance as i64)
         .execute(&self.pool)
         .await;
 
@@ -73,29 +71,11 @@ impl Connection {
         db_response.is_ok()
     }
 
-    pub async fn get_user(&self, public_key: String) -> anyhow::Result<Wallet> {
-        println!("Finding user with key: {}", public_key);
-        let user_retrieved: Result<UserDB, Error> = sqlx::query_as(
-            "SELECT * FROM USERS WHERE public_key = $1"
-        )
-        .bind(public_key)
-        .fetch_one(&self.pool)
-        .await;
-
-        match user_retrieved {
-            Ok(user_wallet) => Ok(Wallet::load(user_wallet.public_key, user_wallet.address)),
-            Err(e) => {
-                println!("{}", e.to_string());
-                Err(anyhow::anyhow!("User not found"))
-            }
-        }
-    }
-
-    pub async fn get_user_balance(&self, public_key: &String) -> anyhow::Result<u64> {
+    pub async fn get_user_balance(&self, user_address: &String) -> anyhow::Result<u64> {
         let balance_retrieved: Result<UserBalance, Error> = sqlx::query_as(
-            "SELECT balance FROM USERS WHERE public_key = $1"
+            "SELECT balance FROM USERS WHERE address = $1"
         )
-        .bind(public_key)
+        .bind(user_address)
         .fetch_one(&self.pool)
         .await;
 
@@ -109,6 +89,16 @@ impl Connection {
                 Err(anyhow::anyhow!("User not found"))
             }
         }
+    }
+
+    pub async fn create_user_if_not_exists(&self, user_address: &String, balance: u64) -> bool {
+        let user_exists = self.get_user_balance(user_address).await;
+        if user_exists.is_ok() {
+            return true;
+        }
+
+        self.create_user(user_address.to_string(), balance).await;
+        false
     }
 
     pub async fn increment_user_balance(&self, user_address: String, amount: u64) -> bool {

@@ -8,6 +8,7 @@ use crate::database::validator::Validator;
 use crate::network::node::Mempool;
 use crate::server::request::transaction::TransactionRequest;
 use crate::transaction::Transaction;
+use crate::wallet::Wallet;
 
 #[derive(Clone)]
 struct ServerState {
@@ -34,14 +35,7 @@ async fn handle_transaction(
     State(state): State<ServerState>,
     Json(payload): Json<TransactionRequest>
 ) -> String {
-    let db_response = state.validator.db_connection.get_user(
-        payload.sender_public_key.clone()
-    ).await;
-
-    let user_wallet = match db_response {
-        Ok(user) => user,
-        Err(e) => return e.to_string()
-    };
+    let user_wallet = Wallet::load_from_public_key(payload.sender_public_key.clone());
 
     let transaction = Transaction::load(payload);
     if !user_wallet.verify_signature(&transaction) {

@@ -15,7 +15,7 @@ impl Wallet {
     pub fn new() -> Self {
         let secp = Secp256k1::new();
         let (private_key, public_key) = Secp256k1::generate_keypair(&secp, &mut rng());
-        let address = Self::create_address_hash(&public_key);
+        let address = Self::derive_address_hash(&public_key);
 
         Wallet {
             private_key: Some(private_key),
@@ -34,7 +34,22 @@ impl Wallet {
         }
     }
 
-    fn create_address_hash(public_key: &PublicKey) -> String {
+    pub fn load_from_public_key(public_key_str: String) -> Self {
+        let public_key = Self::public_key_from_hex(public_key_str.as_str());
+        let address = Self::derive_address_hash(&public_key);
+
+        Self {
+            private_key: None,
+            public_key,
+            address
+        }
+    }
+
+    pub fn derive_address_hash_from_string(public_key: &String) -> String {
+        Self::derive_address_hash(&Self::public_key_from_hex(public_key.as_str()))
+    }
+
+    pub fn derive_address_hash(public_key: &PublicKey) -> String {
         let mut sha_hasher = Sha256::new();
         sha_hasher.update(public_key.serialize());
         let sha_result = sha_hasher.finalize();
@@ -61,7 +76,7 @@ impl Wallet {
         hex::encode(self.private_key.unwrap().secret_bytes())
     }
 
-    pub fn public_key_from_hex(hex_str: &str) -> PublicKey {
+    fn public_key_from_hex(hex_str: &str) -> PublicKey {
         let bytes = hex::decode(hex_str).map_err(|_| secp256k1::Error::InvalidPublicKey).unwrap();
 
         PublicKey::from_slice(&bytes).expect(&format!("Invalid public key: {}", hex_str))

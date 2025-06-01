@@ -67,6 +67,11 @@ fn apply_mining_reward(db_connection: Arc<Connection>, block_index: u64) {
         }
 
         let recipient_address = db_response.unwrap().recipient_address;
-        db_connection.increment_user_balance(recipient_address, block_index).await;
+        let user_exists = db_connection.create_user_if_not_exists(&recipient_address, MINING_REWARD_AMOUNT).await;
+        if user_exists {
+            // Increment user balance if already exists in db
+            // Otherwise, the balance will be saved on user creation
+            db_connection.increment_user_balance(recipient_address, MINING_REWARD_AMOUNT).await;
+        }
     });
 }
