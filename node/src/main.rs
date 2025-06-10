@@ -45,21 +45,24 @@ async fn main() -> Result<()> {
     db_connection.create_user(node.lock().await.clone().wallet.address, 0).await;
     network.connect(node.clone(), validator.clone()).await?;
 
-    if args.node_type == NodeType::FULL {
-        tokio::select! {
-            _ = start_server(mempool.clone(), validator.clone()) => {
-                println!("Server shutting down...");
-            }
-            _ = tokio::signal::ctrl_c() => {
-                println!("\nCtrl+C received, cleaning up...");
-                cleanup(db_connection.clone()).await.expect("Cleanup failed");
+    match args.node_type {
+        NodeType::FULL(_) => {
+            tokio::select! {
+                _ = start_server(mempool.clone(), validator.clone()) => {
+                    println!("Server shutting down...");
+                }
+                _ = tokio::signal::ctrl_c() => {
+                    println!("\nCtrl+C received, cleaning up...");
+                    cleanup(db_connection.clone()).await.expect("Cleanup failed");
+                }
             }
         }
-    } else {
-        tokio::select! {
-            _ = tokio::signal::ctrl_c() => {
-                println!("\nCtrl+C received, cleaning up...");
-                cleanup(db_connection.clone()).await.expect("Cleanup failed");
+        _ => {
+            tokio::select! {
+                _ = tokio::signal::ctrl_c() => {
+                    println!("\nCtrl+C received, cleaning up...");
+                    cleanup(db_connection.clone()).await.expect("Cleanup failed");
+                }
             }
         }
     }

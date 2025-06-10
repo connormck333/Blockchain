@@ -10,9 +10,9 @@ use iroh_gossip::proto::TopicId;
 use crate::network::message::Message;
 use crate::network::ticket::Ticket;
 use crate::args::args::Args;
+use crate::args::mode::Mode;
 use crate::network::message_handler::handle_incoming_message;
 use crate::network::node::Node;
-use crate::args::command::Command;
 use crate::database::validator::Validator;
 use crate::mining_tasks::spawn_mining_loop;
 
@@ -35,7 +35,7 @@ impl Network {
             gossip: None,
             router: None,
             mining_active: Arc::new(AtomicBool::new(true)),
-            opening_node: matches!(args.command, Command::OPEN)
+            opening_node: matches!(args.node_type.get_mode(), Mode::OPEN)
         }
     }
 
@@ -55,13 +55,13 @@ impl Network {
     }
 
     fn get_topic_and_nodes(args: Args) -> (TopicId, Vec<NodeAddr>) {
-        match &args.command {
-            Command::OPEN => {
+        match &args.node_type.get_mode() {
+            Mode::OPEN => {
                 let topic = TopicId::from_bytes(rand::random());
                 println!("> Opening chatroom for topic {topic}");
                 (topic, vec![])
             }
-            Command::JOIN { ticket } => {
+            Mode::JOIN { ticket } => {
                 let ticket = Ticket::from_str(&ticket).unwrap();
                 (ticket.topic, ticket.peers)
             }
