@@ -35,8 +35,11 @@ impl Connection {
     fn get_db_url(db_name: String) -> String {
         let db_username = std::env::var("POSTGRES_USERNAME").expect("Database username not set as environment variable");
         let db_password = std::env::var("POSTGRES_PASSWORD").expect("Database password not set as environment variable");
+        let db_host = std::env::var("POSTGRES_HOST").expect("Database host not set as environment variable");
 
-        format!("postgresql://{}:{}@localhost/{}", db_username, db_password, db_name)
+        println!("Database url: postgresql://{}:{}@{}/{}", db_username, db_password, db_host, db_name);
+
+        format!("postgresql://{}:{}@{}/{}", db_username, db_password, db_host, db_name)
     }
 
     fn hash_node_id(node_id: Uuid) -> String {

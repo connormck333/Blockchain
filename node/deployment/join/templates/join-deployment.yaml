@@ -28,6 +28,8 @@ spec:
           imagePullPolicy: Never
           env:
             - name: POSTGRES_USERNAME
-              value: { { .Values.db.username | quote } }
+              value: {{ .Values.db.username | quote }}
             - name: POSTGRES_PASSWORD
-              value: { { .Values.db.password | quote } }
+              value: {{ .Values.db.password | quote }}
+            - name: POSTGRES_HOST
+              value: {{ .Values.db.host | quote }}

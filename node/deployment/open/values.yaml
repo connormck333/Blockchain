@@ -1,3 +1,4 @@
 db:
   username: ""
   password: ""
+  host: "postgres:5432"

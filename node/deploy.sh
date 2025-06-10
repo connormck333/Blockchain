@@ -5,7 +5,13 @@ set -a
 source .env
 set -e
 
-echo "Loaded db username: $POSTGRES_USERNAME"
+# Deploy Database Node
+helm upgrade --install blockchain-db ./deployment/database \
+  --set db.username="$POSTGRES_USERNAME" \
+  --set db.password="$POSTGRES_PASSWORD"
+
+echo "Waiting for database pod to be ready..."
+kubectl wait --for=condition=ready pod -l role=database --timeout=60s
 
 # Deploy Open Node
 helm upgrade --install blockchain-open ./deployment/open \
