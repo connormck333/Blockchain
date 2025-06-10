@@ -1,5 +1,3 @@
-replicas: 0
-ticket: ""
 db:
   username: ""
   password: ""

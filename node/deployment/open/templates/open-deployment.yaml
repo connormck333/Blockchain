@@ -23,3 +23,8 @@ spec:
           image: blockchain:latest
           args: ["full", "open"]
           imagePullPolicy: Never
+          env:
+            - name: POSTGRES_USERNAME
+              value: {{ .Values.db.username | quote }}
+            - name: POSTGRES_PASSWORD
+              value: {{ .Values.db.password | quote }}

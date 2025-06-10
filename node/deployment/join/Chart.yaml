@@ -1,5 +1,5 @@
 apiVersion: v2
-name: blockchain
+name: blockchain-join
 description: A Helm chart to deploy blockchain join nodes
 type: application
 version: 0.1.0

@@ -1,5 +1,5 @@
 apiVersion: v2
-name: blockchain
+name: blockchain-open
 description: A Helm chart to deploy blockchain opening node
 type: application
 version: 0.1.0
