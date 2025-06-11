@@ -47,5 +47,5 @@ echo "Ticket extracted: $TICKET"
 helm upgrade --install blockchain-join ./deployment/join \
   --set db.username="$POSTGRES_USERNAME" \
   --set db.password="$POSTGRES_PASSWORD" \
-  --set replicas=4 \
+  --set replicas=15 \
   --set ticket="$TICKET"
