@@ -1,7 +1,6 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use clap::Parser;
 use anyhow::Result;
-use tokio::sync::Mutex;
 use args::args::Args;
 use crate::args::node_type::NodeType;
 use crate::network::network::Network;
@@ -9,7 +8,8 @@ use crate::network::node::Node;
 use crate::server::server::start_server;
 use crate::database::connection::Connection;
 use crate::database::validator::Validator;
-use crate::p2p::tcp_connection::{connect_to_peer, start_connection};
+use crate::p2p::client::Client;
+use crate::p2p::tcp_connection::{connect_to_peer, start_client};
 
 extern crate sqlx;
 
@@ -28,15 +28,14 @@ mod p2p;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let server1 = tokio::spawn(start_connection("127.0.0.1:8080"));
-    let client1 = tokio::spawn(connect_to_peer("127.0.0.1:8000"));
+    let mut client1 = Arc::new(Mutex::new(Client::new("127.0.0.1:8080".to_string())));
+    let server1 = tokio::spawn(start_client(client1.clone()));
+    let connection1 = tokio::spawn(connect_to_peer(client1.clone(), "127.0.0.1:8088"));
 
-    // let _ = tokio::join!(server1, client1);
+    let mut client2 = Arc::new(Mutex::new(Client::new("127.0.0.1:8088".to_string())));
+    let server2 = tokio::spawn(start_client(client2.clone()));
 
-    let server2 = tokio::spawn(start_connection("127.0.0.1:8000"));
-    let client2 = tokio::spawn(connect_to_peer("127.0.0.1:8080"));
-
-    let _ = tokio::join!(server2, client2, server1, client1);
+    let _ = tokio::join!(server1, connection1, server2);
 
 
     // dotenv::dotenv().ok();

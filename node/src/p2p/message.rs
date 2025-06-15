@@ -1,36 +1,24 @@
-use std::time::SystemTime;
+use anyhow::Result;
+use iroh::NodeId;
 use serde::{Deserialize, Serialize};
+use crate::block::Block;
+use crate::transaction::Transaction;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum Message {
-    PING { timestamp: u64 },
-    PONG { timestamp: u64 },
+    PeerConnection { peer_id: String },
+    BlockMined { from: NodeId, block: Block },
+    TransactionCreated { from: NodeId, transaction: Transaction },
+    GenesisBlock { from: NodeId, genesis_block: Block }
 }
 
 impl Message {
-    pub fn create_ping() -> String {
-        let timestamp = Self::get_timestamp();
-        let message = Message::PING { timestamp };
-
-        message.serialize()
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+        serde_json::from_slice(bytes).map_err(Into::into)
     }
 
-    pub fn create_pong() -> String {
-        let timestamp = Self::get_timestamp();
-        let message = Message::PONG { timestamp };
-
-        message.serialize()
-    }
-
-    fn get_timestamp() -> u64 {
-        SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_secs()
-    }
-
-    pub fn serialize(&self) -> String {
-        serde_json::to_string(self).unwrap()
+    pub fn to_vec(&self) -> Vec<u8> {
+        serde_json::to_vec(self).expect("Failed to serialize message")
     }
 }
