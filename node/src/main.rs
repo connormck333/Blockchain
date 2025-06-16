@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
+use std::time::Duration;
 use clap::Parser;
 use anyhow::Result;
 use args::args::Args;
@@ -47,6 +48,18 @@ async fn main() -> Result<()> {
     println!("Mining genesis block");
     let genesis_block = node.lock().await.blockchain.create_genesis_block(miner_address.clone());
 
+    loop {
+        println!("Checking connection...");
+        if !node.lock().await.peers.is_empty() {
+            println!("Connected to {} peers", node.lock().await.peers.len());
+            break;
+        }
+
+        println!("No peer connection established.");
+        println!("Checking connection again in 5 seconds");
+        tokio::time::sleep(Duration::from_secs(5)).await;
+    }
+
     println!("Starting mining...");
     spawn_mining_loop(node.clone(), mining_flag.clone(), db_connection.clone());
     println!("Mining has commenced");
@@ -81,7 +94,7 @@ async fn cleanup(db_connection: Arc<Connection>) -> Result<()> {
     let pool = db_connection.pool.clone();
     drop(pool);
 
-    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    tokio::time::sleep(Duration::from_millis(200)).await;
 
     db_connection.drop_database().await;
     println!("Database dropped successfully.");
