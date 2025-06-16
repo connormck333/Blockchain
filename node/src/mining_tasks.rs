@@ -1,23 +1,18 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use iroh::NodeId;
-use iroh_gossip::net::GossipSender;
 use tokio::sync::Mutex;
 use crate::block::Block;
 use crate::constants::{MINING_REWARD_AMOUNT, MINING_REWARD_DELAY};
 use crate::database::connection::Connection;
 use crate::mining_reward::MiningReward;
-use crate::network::message::Message;
 use crate::network::node::Node;
 use crate::transaction::Transaction;
 use crate::wallet::Wallet;
 
 pub fn spawn_mining_loop(
-    sender: GossipSender,
     node: Arc<Mutex<Node>>,
     mining_flag: Arc<AtomicBool>,
-    db_connection: Arc<Connection>,
-    node_id: NodeId
+    db_connection: Arc<Connection>
 ) {
     tokio::spawn(async move {
         loop {
@@ -32,13 +27,13 @@ pub fn spawn_mining_loop(
                     save_mining_reward(db_connection.clone(), node_address, block.index).await;
 
                     let transactions = block.transactions.clone();
-                    let message = Message::BlockMined {
-                        from: node_id,
-                        block
-                    };
-                    let bytes = message.to_vec().into();
-                    let _ = sender.broadcast(bytes).await;
-                    println!("Sent mined block");
+                    // let message = Message::BlockMined {
+                    //     from: client_id,
+                    //     block
+                    // };
+                    // let bytes = message.to_vec().into();
+                    // let _ = sender.broadcast(bytes).await;
+                    // println!("Sent mined block");
 
                     spawn_update_balances(db_connection.clone(), transactions);
                 } else {

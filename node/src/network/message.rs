@@ -5,8 +5,10 @@ use crate::block::Block;
 use crate::transaction::Transaction;
 
 #[derive(Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub enum Message {
-    BlockMined { from: NodeId, block: Block },
+    PeerConnection { peer_id: String },
+    BlockMined { from: String, block: Block },
     TransactionCreated { from: NodeId, transaction: Transaction },
     GenesisBlock { from: NodeId, genesis_block: Block }
 }

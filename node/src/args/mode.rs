@@ -8,8 +8,11 @@ pub struct ModeArgs {
 
 #[derive(Subcommand, Debug, Clone)]
 pub enum Mode {
-    OPEN,
+    OPEN {
+        node_address: String,
+    },
     JOIN {
-        ticket: String
+        node_address: String,
+        peer_address: String
     }
 }
