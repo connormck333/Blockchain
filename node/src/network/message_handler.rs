@@ -18,7 +18,7 @@ pub async fn on_genesis_received(node: Arc<Mutex<Node>>, from: NodeId, genesis_b
     println!("> Starting mining...");
 }
 
-pub async fn on_block_received(node: Arc<Mutex<Node>>, mining_flag: Arc<AtomicBool>, validator: Arc<Validator>, from: NodeId, block: Block) {
+pub async fn on_block_received(node: Arc<Mutex<Node>>, mining_flag: Arc<AtomicBool>, validator: Arc<Validator>, from: String, block: Block) {
     for transaction in &block.transactions {
         if !validator.validate_transaction(transaction).await {
             println!("Invalid transaction received... Continuing to mine");

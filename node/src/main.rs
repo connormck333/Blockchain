@@ -31,11 +31,11 @@ async fn main() -> Result<()> {
 
     let args = Args::parse();
 
-    let node = create_node(&args);
     let mining_flag = Arc::new(AtomicBool::new(true));
-    let mempool = node.lock().await.mempool.clone();
-    let db_connection = Arc::new(Connection::new(node.lock().await.id).await);
+    let db_connection = Arc::new(Connection::new().await);
     let validator = Arc::new(Validator::new(db_connection.clone()));
+    let node = create_node(&args, validator.clone(), mining_flag.clone());
+    let mempool = node.lock().await.mempool.clone();
 
     let wallet = node.lock().await.wallet.clone();
     println!("Wallet private key: {}", wallet.get_private_key());

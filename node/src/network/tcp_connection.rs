@@ -1,14 +1,17 @@
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Mutex;
 use crate::args::args::Args;
 use crate::args::mode::Mode;
+use crate::database::validator::Validator;
 use crate::network::message::Message;
+use crate::network::message_handler::{on_block_received, on_genesis_received};
 use crate::network::node::Node;
 
-async fn handle_client(stream: TcpStream, node: Arc<Mutex<Node>>) {
+async fn handle_client(stream: TcpStream, node: Arc<Mutex<Node>>, validator: Arc<Validator>, mining_flag: Arc<AtomicBool>) {
     let reader = BufReader::new(stream);
     let mut lines = reader.lines();
 
@@ -24,10 +27,10 @@ async fn handle_client(stream: TcpStream, node: Arc<Mutex<Node>>) {
                         println!("1. Connected peers: {}", node.lock().await.peers.len());
                     }
                     Message::GenesisBlock {from, genesis_block} => {
-                        // on_genesis_received(node.clone(), from, genesis_block).await;
+                        on_genesis_received(node.clone(), from, genesis_block).await;
                     }
                     Message::BlockMined {from, block} => {
-                        // on_block_received(node, mining_flag, validator, from, block).await;
+                        on_block_received(node.clone(), mining_flag.clone(), validator.clone(), from, block).await;
                     }
                     _ => {
                         println!("Received unknown message");
@@ -68,13 +71,13 @@ pub async fn connect_to_peer(node: Arc<Mutex<Node>>, peer_address: &str) {
     }
 }
 
-pub async fn start_client(node: Arc<Mutex<Node>>, address: String) {
+pub async fn start_client(node: Arc<Mutex<Node>>, address: String, validator: Arc<Validator>, mining_flag: Arc<AtomicBool>) {
     let listener = TcpListener::bind(address.clone()).await.expect("Failed to bind local port");
     println!("Started client at {}", address);
 
     match listener.accept().await {
         Ok((stream, _)) => {
-            tokio::spawn(handle_client(stream, node.clone()));
+            tokio::spawn(handle_client(stream, node.clone(), validator, mining_flag));
         }
         Err(e) => {
             println!("Failed to accept connection; err = {:?}", e);
@@ -84,7 +87,7 @@ pub async fn start_client(node: Arc<Mutex<Node>>, address: String) {
     println!("End of start client");
 }
 
-pub fn create_node(args: &Args) -> Arc<Mutex<Node>> {
+pub fn create_node(args: &Args, validator: Arc<Validator>, mining_flag: Arc<AtomicBool>) -> Arc<Mutex<Node>> {
     let (node_address, peer_address) = match args.node_type.get_mode() {
         Mode::OPEN { node_address } => (node_address.clone(), "".to_string()),
         Mode::JOIN { node_address, peer_address } => (node_address.clone(), peer_address.clone())
@@ -92,7 +95,7 @@ pub fn create_node(args: &Args) -> Arc<Mutex<Node>> {
 
     let mut node = Arc::new(Mutex::new(Node::new(node_address.clone())));
 
-    tokio::spawn(start_client(node.clone(), node_address));
+    tokio::spawn(start_client(node.clone(), node_address, validator, mining_flag));
 
     if peer_address.len() > 0 {
         let node_copy = node.clone();

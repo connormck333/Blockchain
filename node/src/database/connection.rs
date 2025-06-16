@@ -15,8 +15,8 @@ pub struct Connection {
 
 impl Connection {
 
-    pub async fn new(node_id: Uuid) -> Self {
-        let db_name = format!("devconnor_blockchain_{}", Self::hash_node_id(node_id));
+    pub async fn new() -> Self {
+        let db_name = format!("devconnor_blockchain_{}", Uuid::new_v4());
         let db_url = Self::get_db_url(db_name.clone());
 
         Self::create_database(db_url.clone()).await;
@@ -40,13 +40,6 @@ impl Connection {
         println!("Database url: postgresql://{}:{}@{}/{}", db_username, db_password, db_host, db_name);
 
         format!("postgresql://{}:{}@{}/{}", db_username, db_password, db_host, db_name)
-    }
-
-    fn hash_node_id(node_id: Uuid) -> String {
-        let mut hasher = DefaultHasher::new();
-        node_id.hash(&mut hasher);
-
-        format!("{:x}", hasher.finish())
     }
 
     async fn create_database(db_name: String) {
