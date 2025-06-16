@@ -10,37 +10,41 @@ pub type Mempool = Arc<Mutex<Vec<Transaction>>>;
 
 #[derive(Clone)]
 pub struct Node {
-    pub name: String,
     pub blockchain: Blockchain,
     pub mempool: Mempool,
     pub wallet: Wallet,
     pub id: Uuid,
-    pub difficulty: usize
+    pub address: String,
+    pub peers: Vec<String>
 }
 
 impl Node {
-    pub fn new(name: &str, difficulty: usize) -> Self {
+    pub fn new(address: String) -> Self {
         Self {
-            name: name.to_string(),
-            blockchain: Blockchain::new(difficulty),
+            blockchain: Blockchain::new(),
             mempool: Arc::new(Mutex::new(Vec::new())),
             wallet: Wallet::new(),
             id: Uuid::new_v4(),
-            difficulty
+            address,
+            peers: Vec::new()
         }
     }
 
     pub fn receive_block(&mut self, block: &Block) -> bool {
         if self.blockchain.add_block_to_chain(&block) {
-            println!("{} accepted new block", self.name);
+            println!("{} accepted new block", self.address);
             true
         } else {
-            println!("{} rejected the block", self.name);
+            println!("{} rejected the block", self.address);
             false
         }
     }
 
     pub async fn delete_txs_from_mempool(&mut self, transactions: &Vec<Transaction>) {
         self.mempool.lock().await.retain(|tx| !transactions.contains(tx));
+    }
+
+    pub fn add_peer(&mut self, address: String) {
+        self.peers.push(address);
     }
 }

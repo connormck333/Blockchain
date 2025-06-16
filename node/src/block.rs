@@ -4,6 +4,7 @@ use hex::encode;
 use serde::{Serialize, Deserialize};
 use serde_json::to_string;
 use sha2::{Digest, Sha256};
+use crate::constants::BLOCKCHAIN_DIFFICULTY;
 use crate::transaction::Transaction;
 
 /*
@@ -35,7 +36,7 @@ pub struct Block {
 }
 
 impl Block {
-    pub fn new(index: u64, previous_block_hash: String, transactions: Vec<Transaction>, difficulty: usize, miner_address: String) -> Self {
+    pub fn new(index: u64, previous_block_hash: String, transactions: Vec<Transaction>, miner_address: String) -> Self {
         Self {
             index,
             timestamp: Utc::now().timestamp(),
@@ -43,7 +44,7 @@ impl Block {
             previous_block_hash,
             miner_address,
             nonce: 0,
-            difficulty,
+            difficulty: BLOCKCHAIN_DIFFICULTY,
             hash: String::new()
         }
     }

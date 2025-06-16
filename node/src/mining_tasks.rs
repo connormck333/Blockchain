@@ -49,12 +49,10 @@ async fn spawn_mining(node: Arc<Mutex<Node>>, mining_flag: Arc<AtomicBool>) -> O
         let cancel_flag = mining_flag.clone();
         let node_inner = node.clone();
         let transactions = node_inner.lock().await.mempool.lock().await.clone();
-        let difficulty = node_inner.lock().await.difficulty.clone();
         let blockchain_clone = node_inner.lock().await.blockchain.clone();
         let node_address = node_inner.lock().await.wallet.address.clone();
         move || mine_block(
             transactions,
-            difficulty,
             blockchain_clone.get_latest_block().clone().hash,
             blockchain_clone.get_length() as u64,
             cancel_flag,
@@ -65,14 +63,13 @@ async fn spawn_mining(node: Arc<Mutex<Node>>, mining_flag: Arc<AtomicBool>) -> O
 
 fn mine_block(
     transactions: Vec<Transaction>,
-    difficulty: usize,
     previous_hash: String,
     block_index: u64,
     cancel_flag: Arc<AtomicBool>,
     node_address: String
 ) -> Option<Block> {
     println!("-----> Transaction count picked up for mining: {}", transactions.len());
-    let mut block = Block::new(block_index, previous_hash, transactions, difficulty, node_address);
+    let mut block = Block::new(block_index, previous_hash, transactions, node_address);
 
     while cancel_flag.load(Ordering::Relaxed) == true {
         if block.mine() {

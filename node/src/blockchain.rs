@@ -1,4 +1,5 @@
 use crate::block::Block;
+use crate::constants::BLOCKCHAIN_DIFFICULTY;
 /*
     Blockchain is a shared, immutable digital ledger, enabling the recording of transactions
     and the tracking of assets within a business network and providing a single source of truth.
@@ -6,15 +7,13 @@ use crate::block::Block;
 
 #[derive(Clone)]
 pub struct Blockchain {
-    chain: Vec<Block>,
-    difficulty: usize,
+    chain: Vec<Block>
 }
 
 impl Blockchain {
-    pub fn new(difficulty: usize) -> Self {
+    pub fn new() -> Self {
         Self {
-            chain: vec![],
-            difficulty
+            chain: vec![]
         }
     }
 
@@ -31,7 +30,7 @@ impl Blockchain {
 
         new_block.previous_block_hash == last_block.hash &&
             new_block.index == last_block.index + 1 &&
-            new_block.hash.starts_with(&"0".repeat(self.difficulty)) &&
+            new_block.hash.starts_with(&"0".repeat(BLOCKCHAIN_DIFFICULTY)) &&
             new_block.hash == new_block.create_hash()
     }
 
@@ -55,7 +54,7 @@ impl Blockchain {
     }
 
     pub fn create_genesis_block(&mut self, miner_address: String) -> Block {
-        let mut genesis = Block::new(0, "0".to_string(), Vec::new(), self.difficulty, miner_address);
+        let mut genesis = Block::new(0, "0".to_string(), Vec::new(), miner_address);
         loop {
             if genesis.mine() {
                 break;
@@ -83,8 +82,7 @@ mod tests {
 
     #[test]
     fn test_constructor() {
-        let blockchain = Blockchain::new(2);
-        assert_eq!(blockchain.difficulty, 2);
+        let blockchain = Blockchain::new();
         assert_eq!(blockchain.chain.len(), 1);
 
         let genesis = blockchain.get_latest_block();
@@ -98,9 +96,9 @@ mod tests {
 
     #[test]
     fn test_is_valid_new_block_success() {
-        let blockchain = Blockchain::new(2);
+        let blockchain = Blockchain::new();
         let prev_block = blockchain.get_latest_block();
-        let mut new_block = Block::new(prev_block.index + 1, prev_block.hash.clone(), vec![], 2);
+        let mut new_block = Block::new(prev_block.index + 1, prev_block.hash.clone(), vec![], "miner_address".to_string());
 
         new_block.mine();
 
@@ -111,9 +109,9 @@ mod tests {
 
     #[test]
     fn test_is_valid_new_block_invalid_prev_hash() {
-        let blockchain = Blockchain::new(2);
+        let blockchain = Blockchain::new();
         let prev_block = blockchain.get_latest_block();
-        let mut new_block = Block::new(prev_block.index + 1, "invalidHash".to_string(), vec![], 2);
+        let mut new_block = Block::new(prev_block.index + 1, "invalidHash".to_string(), vec![], "miner_address".to_string());
 
         new_block.mine();
 
@@ -124,9 +122,9 @@ mod tests {
 
     #[test]
     fn test_is_valid_new_block_invalid_index() {
-        let blockchain = Blockchain::new(2);
+        let blockchain = Blockchain::new();
         let prev_block = blockchain.get_latest_block();
-        let mut new_block = Block::new(prev_block.index + 10, prev_block.hash.clone(), vec![], 2);
+        let mut new_block = Block::new(prev_block.index + 10, prev_block.hash.clone(), vec![], "miner_address".to_string());
 
         new_block.mine();
 
@@ -137,9 +135,9 @@ mod tests {
 
     #[test]
     fn test_is_valid_new_block_invalid_hash() {
-        let blockchain = Blockchain::new(2);
+        let blockchain = Blockchain::new();
         let prev_block = blockchain.get_latest_block();
-        let mut new_block = Block::new(prev_block.index + 1, prev_block.hash.clone(), vec![], 2);
+        let mut new_block = Block::new(prev_block.index + 1, prev_block.hash.clone(), vec![], "miner_address".to_string());
 
         new_block.mine();
         new_block.hash += "invalid";
@@ -151,9 +149,9 @@ mod tests {
 
     #[test]
     fn test_is_valid_new_block_invalid_hash_prefix() {
-        let blockchain = Blockchain::new(2);
+        let blockchain = Blockchain::new();
         let prev_block = blockchain.get_latest_block();
-        let mut new_block = Block::new(prev_block.index + 1, prev_block.hash.clone(), vec![], 2);
+        let mut new_block = Block::new(prev_block.index + 1, prev_block.hash.clone(), vec![], "miner_address".to_string());
 
         new_block.mine();
         new_block.hash = new_block.hash[1..].to_string();
@@ -165,9 +163,9 @@ mod tests {
 
     #[test]
     fn test_get_latest_block() {
-        let mut blockchain = Blockchain::new(2);
+        let mut blockchain = Blockchain::new();
         let prev_block = blockchain.get_latest_block().clone();
-        let new_block = Block::new(prev_block.index + 1, prev_block.hash.clone(), vec![], 2);
+        let new_block = Block::new(prev_block.index + 1, prev_block.hash.clone(), vec![], "miner_address".to_string());
 
         blockchain.add_block_to_chain(&new_block);
 

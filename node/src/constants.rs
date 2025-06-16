@@ -1,2 +1,3 @@
 pub const MINING_REWARD_DELAY: u64 = 5;
 pub const MINING_REWARD_AMOUNT: u64 = 50;
+pub const BLOCKCHAIN_DIFFICULTY: usize = 5;

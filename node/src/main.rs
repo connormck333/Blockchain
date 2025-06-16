@@ -2,15 +2,13 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use clap::Parser;
 use anyhow::Result;
-use tokio::sync::Mutex;
 use args::args::Args;
 use crate::args::node_type::NodeType;
-use crate::network::node::Node;
 use crate::server::server::start_server;
 use crate::database::connection::Connection;
 use crate::database::validator::Validator;
 use crate::mining_tasks::spawn_mining_loop;
-use crate::network::tcp_connection::create_client;
+use crate::network::tcp_connection::create_node;
 
 extern crate sqlx;
 
@@ -31,11 +29,8 @@ async fn main() -> Result<()> {
     dotenv::dotenv().ok();
 
     let args = Args::parse();
-    let node_name: String = if args.name.is_some() {args.clone().name.unwrap()} else {"".to_string()};
 
-    let client = create_client(&args);
-
-    let node = Arc::new(Mutex::new(Node::new(&node_name, 5)));
+    let node = create_node(&args);
     let mining_flag = Arc::new(AtomicBool::new(true));
     let mempool = node.lock().await.mempool.clone();
     let db_connection = Arc::new(Connection::new(node.lock().await.id).await);
