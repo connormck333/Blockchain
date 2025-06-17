@@ -1,7 +1,6 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
-use iroh::NodeId;
 use tokio::sync::Mutex;
 use crate::block::Block;
 use crate::constants::{MINING_REWARD_AMOUNT, MINING_REWARD_DELAY};
@@ -11,7 +10,7 @@ use crate::mining_reward::MiningReward;
 use crate::mining_tasks::spawn_update_balances;
 use crate::network::node::Node;
 
-pub async fn on_genesis_received(node: Arc<Mutex<Node>>, from: NodeId, genesis_block: Block) {
+pub async fn on_genesis_received(node: Arc<Mutex<Node>>, from: String, genesis_block: Block) {
     tokio::time::sleep(Duration::from_millis(1000)).await;
     node.lock().await.blockchain.load_starting_block(genesis_block);
     println!("> Starting block received from {}", from);

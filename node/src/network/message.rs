@@ -10,7 +10,7 @@ pub enum Message {
     PeerConnection { peer_id: String },
     BlockMined { from: String, block: Block },
     TransactionCreated { from: NodeId, transaction: Transaction },
-    GenesisBlock { from: NodeId, genesis_block: Block }
+    GenesisBlock { from: String, genesis_block: Block }
 }
 
 impl Message {

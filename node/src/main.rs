@@ -3,12 +3,15 @@ use std::sync::atomic::AtomicBool;
 use std::time::Duration;
 use clap::Parser;
 use anyhow::Result;
+use tokio::sync::Mutex;
 use args::args::Args;
+use crate::args::mode::Mode;
 use crate::args::node_type::NodeType;
 use crate::server::server::start_server;
 use crate::database::connection::Connection;
 use crate::database::validator::Validator;
 use crate::mining_tasks::spawn_mining_loop;
+use crate::network::message_sender::MessageSender;
 use crate::network::tcp_connection::create_node;
 
 extern crate sqlx;
@@ -30,11 +33,13 @@ async fn main() -> Result<()> {
     dotenv::dotenv().ok();
 
     let args = Args::parse();
+    let is_opening_node = matches!(args.node_type.get_mode(), Mode::OPEN { .. });
 
     let mining_flag = Arc::new(AtomicBool::new(true));
     let db_connection = Arc::new(Connection::new().await);
     let validator = Arc::new(Validator::new(db_connection.clone()));
     let node = create_node(&args, validator.clone(), mining_flag.clone());
+    let message_sender = Arc::new(Mutex::new(MessageSender::new(node.clone())));
     let mempool = node.lock().await.mempool.clone();
 
     let wallet = node.lock().await.wallet.clone();
@@ -55,9 +60,13 @@ async fn main() -> Result<()> {
             break;
         }
 
-        println!("No peer connection established.");
+        println!("No peer connection established: {}.", node.lock().await.peers.len());
         println!("Checking connection again in 5 seconds");
         tokio::time::sleep(Duration::from_secs(5)).await;
+    }
+
+    if is_opening_node {
+        message_sender.lock().await.send_genesis_block(&genesis_block).await;
     }
 
     println!("Starting mining...");

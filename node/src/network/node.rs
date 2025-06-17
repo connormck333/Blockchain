@@ -1,4 +1,6 @@
+use std::collections::HashMap;
 use std::sync::Arc;
+use tokio::net::tcp::OwnedWriteHalf;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 use crate::block::Block;
@@ -8,14 +10,13 @@ use crate::wallet::Wallet;
 
 pub type Mempool = Arc<Mutex<Vec<Transaction>>>;
 
-#[derive(Clone)]
 pub struct Node {
     pub blockchain: Blockchain,
     pub mempool: Mempool,
     pub wallet: Wallet,
     pub id: Uuid,
     pub address: String,
-    pub peers: Vec<String>
+    pub peers: HashMap<String, OwnedWriteHalf>
 }
 
 impl Node {
@@ -26,7 +27,7 @@ impl Node {
             wallet: Wallet::new(),
             id: Uuid::new_v4(),
             address,
-            peers: Vec::new()
+            peers: HashMap::new()
         }
     }
 
@@ -44,7 +45,7 @@ impl Node {
         self.mempool.lock().await.retain(|tx| !transactions.contains(tx));
     }
 
-    pub fn add_peer(&mut self, address: String) {
-        self.peers.push(address);
+    pub fn add_peer(&mut self, address: String, connection: OwnedWriteHalf) {
+        self.peers.insert(address.clone(), connection);
     }
 }
