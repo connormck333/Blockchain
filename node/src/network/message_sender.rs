@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
+use tokio::net::tcp::OwnedWriteHalf;
 use tokio::sync::Mutex;
 use crate::block::Block;
 use crate::network::message::Message;
@@ -16,17 +17,21 @@ impl MessageSender {
         }
     }
 
-    pub async fn send_genesis_block(&mut self, genesis_block: &Block) {
+    pub async fn broadcast_message(&mut self, message: &Message) {
         let mut node = self.node.lock().await;
-        let genesis_message = serde_json::to_string(&Message::GenesisBlock {
-            from: node.address.clone(),
-            genesis_block: genesis_block.clone()
-        }).expect("Failed to serialize genesis block message");
 
-        for (peer_address, writer) in &mut node.peers {
-            if let Err(e) = writer.write_all(genesis_message.as_bytes()).await {
-                println!("Failed to send genesis block to peer {}: {:?}", peer_address, e);
-            }
+        for (_, mut writer) in &mut node.peers {
+            Self::send_message(message, &mut writer).await;
+        }
+    }
+
+    pub async fn send_message(message: &Message, writer: &mut OwnedWriteHalf) {
+        println!("Sending message to peer");
+        let mut msg_bytes = message.to_vec();
+        msg_bytes.push(b'\n');
+        if let Err(e) = writer.write_all(&msg_bytes).await {
+            println!("Failed to write to peer: {:?}", e);
+            return;
         }
     }
 }

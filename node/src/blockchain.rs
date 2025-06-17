@@ -24,9 +24,6 @@ impl Blockchain {
 
         let last_block = self.chain.last().unwrap();
         println!("Checking new block validity, current length {}", self.chain.len());
-        println!("Previous block, {}", last_block);
-        println!("New block: {}", new_block);
-
 
         new_block.previous_block_hash == last_block.hash &&
             new_block.index == last_block.index + 1 &&

@@ -5,6 +5,8 @@ use crate::block::Block;
 use crate::constants::{MINING_REWARD_AMOUNT, MINING_REWARD_DELAY};
 use crate::database::connection::Connection;
 use crate::mining_reward::MiningReward;
+use crate::network::message::Message;
+use crate::network::message_sender::MessageSender;
 use crate::network::node::Node;
 use crate::transaction::Transaction;
 use crate::wallet::Wallet;
@@ -12,7 +14,8 @@ use crate::wallet::Wallet;
 pub fn spawn_mining_loop(
     node: Arc<Mutex<Node>>,
     mining_flag: Arc<AtomicBool>,
-    db_connection: Arc<Connection>
+    db_connection: Arc<Connection>,
+    message_sender: Arc<Mutex<MessageSender>>
 ) {
     tokio::spawn(async move {
         loop {
@@ -27,13 +30,11 @@ pub fn spawn_mining_loop(
                     save_mining_reward(db_connection.clone(), node_address, block.index).await;
 
                     let transactions = block.transactions.clone();
-                    // let message = Message::BlockMined {
-                    //     from: client_id,
-                    //     block
-                    // };
-                    // let bytes = message.to_vec().into();
-                    // let _ = sender.broadcast(bytes).await;
-                    // println!("Sent mined block");
+                    let mined_block_message = Message::BlockMined {
+                        from: node.lock().await.address.clone(),
+                        block
+                    };
+                    message_sender.lock().await.broadcast_message(&mined_block_message).await;
 
                     spawn_update_balances(db_connection.clone(), transactions);
                 } else {

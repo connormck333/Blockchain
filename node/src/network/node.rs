@@ -32,13 +32,7 @@ impl Node {
     }
 
     pub fn receive_block(&mut self, block: &Block) -> bool {
-        if self.blockchain.add_block_to_chain(&block) {
-            println!("{} accepted new block", self.address);
-            true
-        } else {
-            println!("{} rejected the block", self.address);
-            false
-        }
+        self.blockchain.add_block_to_chain(&block)
     }
 
     pub async fn delete_txs_from_mempool(&mut self, transactions: &Vec<Transaction>) {

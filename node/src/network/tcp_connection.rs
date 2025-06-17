@@ -3,12 +3,14 @@ use std::sync::atomic::AtomicBool;
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
+use tokio::net::tcp::OwnedWriteHalf;
 use tokio::sync::Mutex;
 use crate::args::args::Args;
 use crate::args::mode::Mode;
 use crate::database::validator::Validator;
 use crate::network::message::Message;
 use crate::network::message_receiver::{on_block_received, on_genesis_received};
+use crate::network::message_sender::MessageSender;
 use crate::network::node::Node;
 
 async fn handle_client(stream: TcpStream, node: Arc<Mutex<Node>>, validator: Arc<Validator>, mining_flag: Arc<AtomicBool>) {
@@ -53,17 +55,11 @@ pub async fn connect_to_peer(node: Arc<Mutex<Node>>, peer_address: &str, return_
 
             let (_, mut writer) = stream.into_split();
 
-            let client_address = node.lock().await.address.clone();
-            let connection_message = Message::PeerConnection { peer_id: client_address.clone() };
-
             if return_address {
-                println!("Sending message to peer {}", client_address);
-                let mut msg_bytes = connection_message.to_vec();
-                msg_bytes.push(b'\n');
-                if let Err(e) = writer.write_all(&msg_bytes).await {
-                    println!("Failed to write to peer {}: {:?}", peer_address, e);
-                    return;
-                }
+                let client_address = node.lock().await.address.clone();
+                let connection_message = Message::PeerConnection { peer_id: client_address.clone() };
+
+                MessageSender::send_message(&connection_message, &mut writer).await;
             }
 
             node.lock().await.add_peer(peer_address.to_string(), writer);

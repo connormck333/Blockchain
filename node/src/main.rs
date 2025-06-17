@@ -7,10 +7,12 @@ use tokio::sync::Mutex;
 use args::args::Args;
 use crate::args::mode::Mode;
 use crate::args::node_type::NodeType;
+use crate::block::Block;
 use crate::server::server::start_server;
 use crate::database::connection::Connection;
 use crate::database::validator::Validator;
 use crate::mining_tasks::spawn_mining_loop;
+use crate::network::message::Message;
 use crate::network::message_sender::MessageSender;
 use crate::network::tcp_connection::create_node;
 
@@ -50,8 +52,11 @@ async fn main() -> Result<()> {
     let miner_address = node.lock().await.wallet.address.clone();
     db_connection.create_user(miner_address.clone(), 0).await;
 
-    println!("Mining genesis block");
-    let genesis_block = node.lock().await.blockchain.create_genesis_block(miner_address.clone());
+    let mut genesis_block: Option<Block> = None;
+    if is_opening_node {
+        println!("Mining genesis block");
+        genesis_block = Some(node.lock().await.blockchain.create_genesis_block(miner_address.clone()));
+    }
 
     loop {
         println!("Checking connection...");
@@ -65,13 +70,15 @@ async fn main() -> Result<()> {
         tokio::time::sleep(Duration::from_secs(5)).await;
     }
 
-    if is_opening_node {
-        message_sender.lock().await.send_genesis_block(&genesis_block).await;
+    if genesis_block.is_some() {
+        let genesis_message = Message::GenesisBlock {
+            from: node.lock().await.address.clone(),
+            genesis_block: genesis_block.unwrap().clone()
+        };
+        message_sender.lock().await.broadcast_message(&genesis_message).await;
     }
 
-    println!("Starting mining...");
-    spawn_mining_loop(node.clone(), mining_flag.clone(), db_connection.clone());
-    println!("Mining has commenced");
+    spawn_mining_loop(node.clone(), mining_flag.clone(), db_connection.clone(), message_sender.clone());
 
     match args.node_type {
         NodeType::FULL(_) => {
