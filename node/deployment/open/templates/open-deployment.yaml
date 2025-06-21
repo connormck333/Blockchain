@@ -21,7 +21,7 @@ spec:
       containers:
         - name: blockchain
           image: blockchain:latest
-          args: ["full", "open"]
+          args: ["full", "open", "0.0.0.0:8080"]
           imagePullPolicy: Never
           env:
             - name: POSTGRES_USERNAME

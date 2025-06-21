@@ -2,7 +2,6 @@ use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
 use tokio::net::tcp::OwnedWriteHalf;
 use tokio::sync::Mutex;
-use crate::block::Block;
 use crate::network::message::Message;
 use crate::network::node::Node;
 

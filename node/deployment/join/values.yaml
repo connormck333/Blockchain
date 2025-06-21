@@ -1,5 +1,5 @@
-replicas: 0
-ticket: ""
+replicas: 1
+host_url: ""
 db:
   username: ""
   password: ""

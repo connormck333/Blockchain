@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: blockchain-join
+  name: {{ .Release.Name }}
   labels:
     app.kubernetes.io/name: blockchain
     app.kubernetes.io/instance: blockchain-join
@@ -24,7 +24,7 @@ spec:
       containers:
         - name: blockchain
           image: blockchain:latest
-          args: ["miner", "join", "{{ .Values.ticket }}"]
+          args: ["miner", "join", "{{ .Values.host_url }}", "127.0.0.1:8080"]
           imagePullPolicy: Never
           env:
             - name: POSTGRES_USERNAME

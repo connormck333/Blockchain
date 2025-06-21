@@ -2,7 +2,11 @@
 
 set -e
 
-kubectl delete deployment blockchain-join
+for port in $(seq 8080 8094); do
+  release="blockchain-join-$port"
+  echo "Uninstalling $release..."
+  helm uninstall "$release" || echo "$release not found"
+done
 
 kubectl delete deployment blockchain-open
 
