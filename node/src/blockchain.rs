@@ -1,23 +1,21 @@
 use crate::block::Block;
 use crate::constants::BLOCKCHAIN_DIFFICULTY;
-/*
-    Blockchain is a shared, immutable digital ledger, enabling the recording of transactions
-    and the tracking of assets within a business network and providing a single source of truth.
-*/
 
 #[derive(Clone)]
 pub struct Blockchain {
-    chain: Vec<Block>
+    chain: Vec<Block>,
+    invalid_blocks: Vec<Block>
 }
 
 impl Blockchain {
     pub fn new() -> Self {
         Self {
-            chain: vec![]
+            chain: vec![],
+            invalid_blocks: vec![]
         }
     }
 
-    pub fn is_valid_new_block(&self, new_block: &Block) -> bool {
+    pub fn is_valid_new_block(&mut self, new_block: &Block) -> bool {
         if self.chain.len() == 0 {
             return true;
         }
@@ -25,8 +23,15 @@ impl Blockchain {
         let last_block = self.chain.last().unwrap();
         println!("Checking new block validity, current length {}", self.chain.len());
 
-        new_block.previous_block_hash == last_block.hash &&
-            new_block.index == last_block.index + 1 &&
+        if new_block.previous_block_hash != last_block.hash {
+            println!("Found invalid previous block hash");
+            println!("Storing block in case of forked chain");
+            self.invalid_blocks.push(new_block.clone());
+
+            return false;
+        }
+
+        new_block.index == last_block.index + 1 &&
             new_block.hash.starts_with(&"0".repeat(BLOCKCHAIN_DIFFICULTY)) &&
             new_block.hash == new_block.create_hash()
     }
@@ -93,7 +98,7 @@ mod tests {
 
     #[test]
     fn test_is_valid_new_block_success() {
-        let blockchain = Blockchain::new();
+        let mut blockchain = Blockchain::new();
         let prev_block = blockchain.get_latest_block();
         let mut new_block = Block::new(prev_block.index + 1, prev_block.hash.clone(), vec![], "miner_address".to_string());
 
@@ -106,7 +111,7 @@ mod tests {
 
     #[test]
     fn test_is_valid_new_block_invalid_prev_hash() {
-        let blockchain = Blockchain::new();
+        let mut blockchain = Blockchain::new();
         let prev_block = blockchain.get_latest_block();
         let mut new_block = Block::new(prev_block.index + 1, "invalidHash".to_string(), vec![], "miner_address".to_string());
 
@@ -119,7 +124,7 @@ mod tests {
 
     #[test]
     fn test_is_valid_new_block_invalid_index() {
-        let blockchain = Blockchain::new();
+        let mut blockchain = Blockchain::new();
         let prev_block = blockchain.get_latest_block();
         let mut new_block = Block::new(prev_block.index + 10, prev_block.hash.clone(), vec![], "miner_address".to_string());
 
@@ -132,7 +137,7 @@ mod tests {
 
     #[test]
     fn test_is_valid_new_block_invalid_hash() {
-        let blockchain = Blockchain::new();
+        let mut blockchain = Blockchain::new();
         let prev_block = blockchain.get_latest_block();
         let mut new_block = Block::new(prev_block.index + 1, prev_block.hash.clone(), vec![], "miner_address".to_string());
 
@@ -146,7 +151,7 @@ mod tests {
 
     #[test]
     fn test_is_valid_new_block_invalid_hash_prefix() {
-        let blockchain = Blockchain::new();
+        let mut blockchain = Blockchain::new();
         let prev_block = blockchain.get_latest_block();
         let mut new_block = Block::new(prev_block.index + 1, prev_block.hash.clone(), vec![], "miner_address".to_string());
 
