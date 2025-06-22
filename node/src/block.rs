@@ -85,6 +85,17 @@ impl Block {
 
         encode(result)
     }
+
+    pub fn equals(&self, other: &Block) -> bool {
+        self.index == other.index &&
+        self.timestamp == other.timestamp &&
+        self.transactions == other.transactions &&
+        self.previous_block_hash == other.previous_block_hash &&
+        self.miner_address == other.miner_address &&
+        self.nonce == other.nonce &&
+        self.difficulty == other.difficulty &&
+        self.hash == other.hash
+    }
 }
 
 impl Display for Block {

@@ -91,23 +91,32 @@ pub async fn start_client(node: Arc<Mutex<Node>>, address: String, validator: Ar
     }
 }
 
-pub fn create_node(args: &Args, validator: Arc<Validator>, mining_flag: Arc<AtomicBool>) -> Arc<Mutex<Node>> {
+pub async fn create_node(args: &Args, validator: Arc<Validator>, mining_flag: Arc<AtomicBool>) -> Arc<Mutex<Node>> {
     let (node_address, peer_address) = match args.node_type.get_mode() {
-        Mode::OPEN { node_address } => (node_address.clone(), "".to_string()),
-        Mode::JOIN { node_address, peer_address } => (node_address.clone(), peer_address.clone())
+        Mode::OPEN { node_address } => (node_address.clone(), None),
+        Mode::JOIN { node_address, peer_address } => (node_address.clone(), Some(peer_address.clone()))
     };
 
     let mut node = Arc::new(Mutex::new(Node::new(node_address.clone())));
+    start_peer_connection(node.clone(), validator, mining_flag, peer_address).await;
 
+    node
+}
+
+pub async fn start_peer_connection(
+    node: Arc<Mutex<Node>>,
+    validator: Arc<Validator>,
+    mining_flag: Arc<AtomicBool>,
+    peer_address: Option<String>
+) {
+    let node_address = node.lock().await.address.clone();
     tokio::spawn(start_client(node.clone(), node_address, validator, mining_flag));
 
-    if peer_address.len() > 0 {
+    if peer_address.is_some() {
         let node_copy = node.clone();
-        let peer_address_clone = peer_address.clone();
+        let peer_address_clone = peer_address.unwrap();
         tokio::spawn(async move {
             connect_to_peer(node_copy, &peer_address_clone, true).await;
         });
     }
-
-    node
 }

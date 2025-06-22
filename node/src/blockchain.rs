@@ -3,7 +3,7 @@ use crate::constants::BLOCKCHAIN_DIFFICULTY;
 
 #[derive(Clone)]
 pub struct Blockchain {
-    chain: Vec<Block>,
+    pub chain: Vec<Block>,
     invalid_blocks: Vec<Block>
 }
 

@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, Once};
 use tokio::sync::Mutex;
 use MockChain::args::args::Args;
 use MockChain::args::mode::{Mode, ModeArgs};
@@ -7,13 +7,28 @@ use MockChain::block::Block;
 use MockChain::database::connection::Connection;
 use MockChain::network::node::Node;
 
+static INIT: Once = Once::new();
+
+pub fn init_logger() {
+    INIT.call_once(|| {
+        env_logger::builder()
+            .is_test(true)
+            .init();
+    });
+}
+
 pub async fn wait_for_genesis(node: Arc<Mutex<Node>>) -> Block {
-    let mut node = node.lock().await;
-    while node.blockchain.get_length() == 0 {
-        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    wait_for_block_at_index(node, 0).await
+}
+
+pub async fn wait_for_block_at_index(node: Arc<Mutex<Node>>, index: usize) -> Block {
+    log::info!("Waiting for block at index {} to be mined...", index);
+    while node.lock().await.blockchain.get_length() <= index {
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        log::info!("Checking for block at index {}...", index);
     }
 
-    node.blockchain.get_latest_block().clone()
+    node.lock().await.blockchain.chain[index].clone()
 }
 
 pub fn create_node(node_address: String) -> Arc<Mutex<Node>> {

@@ -14,7 +14,7 @@ use crate::mining_tasks::spawn_mining_loop;
 use crate::network::message::Message;
 use crate::network::message_sender::MessageSender;
 use crate::network::node::Node;
-use crate::network::tcp_connection::create_node;
+use crate::network::tcp_connection::{create_node, start_peer_connection};
 use crate::server::server::start_server;
 
 extern crate sqlx;
@@ -25,10 +25,18 @@ pub async fn test_init(
     args: Args
 ) -> Result<()> {
     let mining_flag = Arc::new(AtomicBool::new(true));
+    let validator = Arc::new(Validator::new(db_connection.clone()));
     let message_sender = Arc::new(Mutex::new(MessageSender::new(node.clone())));
 
     let miner_address = node.lock().await.wallet.address.clone();
     db_connection.create_user(miner_address.clone(), 0).await;
+
+    let peer_address = match args.node_type.get_mode() {
+        Mode::OPEN { .. } => None,
+        Mode::JOIN { peer_address, .. } => Some(peer_address.clone()),
+    };
+
+    start_peer_connection(node.clone(), validator.clone(), mining_flag.clone(), peer_address).await;
 
     start_blockchain(
         mining_flag.clone(),
@@ -41,13 +49,11 @@ pub async fn test_init(
 }
 
 pub async fn init() -> Result<()> {
-    dotenv::dotenv().ok();
-
     let args = Args::parse();
     let mining_flag = Arc::new(AtomicBool::new(true));
     let db_connection = Arc::new(Connection::new().await);
     let validator = Arc::new(Validator::new(db_connection.clone()));
-    let node = create_node(&args, validator.clone(), mining_flag.clone());
+    let node = create_node(&args, validator.clone(), mining_flag.clone()).await;
     let message_sender = Arc::new(Mutex::new(MessageSender::new(node.clone())));
     let mempool = node.lock().await.mempool.clone();
 
