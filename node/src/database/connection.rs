@@ -1,4 +1,3 @@
-use std::hash::Hash;
 use sqlx::{Error, Pool, Postgres};
 use sqlx::migrate::MigrateDatabase;
 use sqlx::postgres::PgPoolOptions;

@@ -5,6 +5,7 @@ use MockChain::args::mode::{Mode, ModeArgs};
 use MockChain::args::node_type::NodeType;
 use MockChain::block::Block;
 use MockChain::database::connection::Connection;
+use MockChain::database::operations::DbOperations;
 use MockChain::network::node::Node;
 
 static INIT: Once = Once::new();
@@ -33,10 +34,6 @@ pub async fn wait_for_block_at_index(node: Arc<Mutex<Node>>, index: usize) -> Bl
 
 pub fn create_node(node_address: String) -> Arc<Mutex<Node>> {
     Arc::new(Mutex::new(Node::new(node_address)))
-}
-
-pub async fn create_db_connection() -> Arc<Connection> {
-    Arc::new(Connection::new().await)
 }
 
 pub fn create_open_node_args(node_address: String) -> Args {
