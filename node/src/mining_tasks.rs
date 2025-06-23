@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::Mutex;
 use crate::block::Block;
 use crate::constants::{MINING_REWARD_AMOUNT, MINING_REWARD_DELAY};
-use crate::database::connection::Connection;
+use crate::database::operations::DbOperations;
 use crate::mining_reward::MiningReward;
 use crate::network::message::Message;
 use crate::network::message_sender::MessageSender;
@@ -14,7 +14,7 @@ use crate::wallet::Wallet;
 pub fn spawn_mining_loop(
     node: Arc<Mutex<Node>>,
     mining_flag: Arc<AtomicBool>,
-    db_connection: Arc<Connection>,
+    db: DbOperations,
     message_sender: Arc<Mutex<MessageSender>>
 ) {
     tokio::spawn(async move {
@@ -27,7 +27,7 @@ pub fn spawn_mining_loop(
                     node.lock().await.delete_txs_from_mempool(&block.transactions).await;
 
                     let node_address = node.lock().await.wallet.address.clone();
-                    save_mining_reward(db_connection.clone(), node_address, block.index).await;
+                    save_mining_reward(db.clone(), node_address, block.index).await;
 
                     let transactions = block.transactions.clone();
                     let mined_block_message = Message::BlockMined {
@@ -36,7 +36,7 @@ pub fn spawn_mining_loop(
                     };
                     message_sender.lock().await.broadcast_message(&mined_block_message).await;
 
-                    spawn_update_balances(db_connection.clone(), transactions);
+                    spawn_update_balances(db.clone(), transactions);
                 } else {
                     mining_flag.store(true, Ordering::Relaxed);
                 }
@@ -82,28 +82,28 @@ fn mine_block(
     None
 }
 
-async fn save_mining_reward(db_connection: Arc<Connection>, node_address: String, block_index: u64) {
+async fn save_mining_reward(db: DbOperations, node_address: String, block_index: u64) {
     let mining_reward = MiningReward::new(
         MINING_REWARD_AMOUNT,
         node_address,
         block_index + MINING_REWARD_DELAY
     );
-    db_connection.save_mining_reward(mining_reward).await;
+    db.save_mining_reward(mining_reward).await;
 }
 
-pub fn spawn_update_balances(db_connection: Arc<Connection>, transactions: Vec<Transaction>) {
+pub fn spawn_update_balances(db: DbOperations, transactions: Vec<Transaction>) {
     println!("Started update balances");
     tokio::spawn(async move {
         println!("Mined transactions count: {}", transactions.len());
         for transaction in &transactions {
             // Decrement sender balance
             let sender_address = Wallet::derive_address_hash_from_string(&transaction.sender);
-            db_connection.create_user_and_update_balance(sender_address.clone(), -(transaction.amount as i64)).await;
+            db.create_user_and_update_balance(sender_address.clone(), -(transaction.amount as i64)).await;
             println!("Updated balance for {}", sender_address);
 
             // Increment recipient balance
             let receiver_address = transaction.recipient.clone();
-            db_connection.create_user_and_update_balance(receiver_address.clone(), transaction.amount as i64).await;
+            db.create_user_and_update_balance(receiver_address.clone(), transaction.amount as i64).await;
             println!("Updated balance for {}", receiver_address);
         }
     });

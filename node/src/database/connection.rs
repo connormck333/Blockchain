@@ -1,9 +1,10 @@
-use std::hash::{DefaultHasher, Hash, Hasher};
+use std::hash::Hash;
 use sqlx::{Error, Pool, Postgres};
 use sqlx::migrate::MigrateDatabase;
 use sqlx::postgres::PgPoolOptions;
 use uuid::Uuid;
 use crate::constants::MINING_REWARD_AMOUNT;
+use crate::database::operations::DatabaseOperations;
 use crate::database::structs::recipient_address::RecipientAddress;
 use crate::database::structs::user_balance::UserBalance;
 use crate::mining_reward::MiningReward;
@@ -11,6 +12,45 @@ use crate::mining_reward::MiningReward;
 pub struct Connection {
     pub pool: Pool<Postgres>,
     db_name: String
+}
+
+#[async_trait::async_trait]
+impl DatabaseOperations for Connection {
+    async fn create_user(&self, user_address: String, balance: u64) -> bool {
+        self.create_user(user_address, balance).await
+    }
+
+    async fn get_user_balance(&self, user_address: &String) -> anyhow::Result<u64> {
+        self.get_user_balance(user_address).await
+    }
+
+    async fn create_user_if_not_exists(&self, user_address: &String, balance: u64) -> bool {
+        self.create_user_if_not_exists(user_address, balance).await
+    }
+
+    async fn update_user_balance(&self, user_address: String, amount: i64) -> bool {
+        self.update_user_balance(user_address, amount).await
+    }
+
+    async fn save_mining_reward(&self, mining_reward: MiningReward) -> bool {
+        self.save_mining_reward(mining_reward).await
+    }
+
+    async fn get_mining_reward_at_block_index(&self, block_index: u64) -> anyhow::Result<RecipientAddress> {
+        self.get_mining_reward_at_block_index(block_index).await
+    }
+
+    async fn create_user_and_update_balance(&self, recipient_address: String, amount: i64) {
+        self.create_user_and_update_balance(recipient_address, amount).await;
+    }
+
+    async fn drop_database(&self) {
+        self.drop_database().await;
+    }
+
+    fn get_pool(&self) -> &Pool<Postgres> {
+        &self.pool
+    }
 }
 
 impl Connection {

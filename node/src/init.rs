@@ -9,6 +9,7 @@ use crate::args::mode::Mode;
 use crate::args::node_type::NodeType;
 use crate::block::Block;
 use crate::database::connection::Connection;
+use crate::database::operations::DbOperations;
 use crate::database::validator::Validator;
 use crate::mining_tasks::spawn_mining_loop;
 use crate::network::message::Message;
@@ -21,16 +22,14 @@ extern crate sqlx;
 
 pub async fn test_init(
     node: Arc<Mutex<Node>>,
-    db_connection: Arc<Connection>,
+    db: DbOperations,
     args: Args
 ) -> Result<()> {
     let mining_flag = Arc::new(AtomicBool::new(true));
-    let validator = Arc::new(Validator::new(db_connection.clone()));
+    let validator = Arc::new(Validator::new(db.clone()));
     let message_sender = Arc::new(Mutex::new(MessageSender::new(node.clone())));
 
     let miner_address = node.lock().await.wallet.address.clone();
-    db_connection.create_user(miner_address.clone(), 0).await;
-
     let peer_address = match args.node_type.get_mode() {
         Mode::OPEN { .. } => None,
         Mode::JOIN { peer_address, .. } => Some(peer_address.clone()),
@@ -41,7 +40,7 @@ pub async fn test_init(
     start_blockchain(
         mining_flag.clone(),
         node.clone(),
-        db_connection.clone(),
+        db.clone(),
         message_sender.clone(),
         miner_address,
         args
@@ -51,8 +50,8 @@ pub async fn test_init(
 pub async fn init() -> Result<()> {
     let args = Args::parse();
     let mining_flag = Arc::new(AtomicBool::new(true));
-    let db_connection = Arc::new(Connection::new().await);
-    let validator = Arc::new(Validator::new(db_connection.clone()));
+    let db = Arc::new(Connection::new().await);
+    let validator = Arc::new(Validator::new(db.clone()));
     let node = create_node(&args, validator.clone(), mining_flag.clone()).await;
     let message_sender = Arc::new(Mutex::new(MessageSender::new(node.clone())));
     let mempool = node.lock().await.mempool.clone();
@@ -63,12 +62,12 @@ pub async fn init() -> Result<()> {
     println!("Wallet address: {}", wallet.address);
 
     let miner_address = node.lock().await.wallet.address.clone();
-    db_connection.create_user(miner_address.clone(), 0).await;
+    db.create_user(miner_address.clone(), 0).await;
 
     start_blockchain(
         mining_flag.clone(),
         node.clone(),
-        db_connection.clone(),
+        db.clone(),
         message_sender.clone(),
         miner_address,
         args.clone()
@@ -82,7 +81,7 @@ pub async fn init() -> Result<()> {
                 }
                 _ = tokio::signal::ctrl_c() => {
                     println!("\nCtrl+C received, cleaning up...");
-                    cleanup(db_connection.clone()).await.expect("Cleanup failed");
+                    cleanup(db.clone()).await.expect("Cleanup failed");
                 }
             }
         }
@@ -90,7 +89,7 @@ pub async fn init() -> Result<()> {
             tokio::select! {
                 _ = tokio::signal::ctrl_c() => {
                     println!("\nCtrl+C received, cleaning up...");
-                    cleanup(db_connection.clone()).await.expect("Cleanup failed");
+                    cleanup(db.clone()).await.expect("Cleanup failed");
                 }
             }
         }
@@ -102,7 +101,7 @@ pub async fn init() -> Result<()> {
 async fn start_blockchain(
     mining_flag: Arc<AtomicBool>,
     node: Arc<Mutex<Node>>,
-    db_connection: Arc<Connection>,
+    db: DbOperations,
     message_sender: Arc<Mutex<MessageSender>>,
     miner_address: String,
     args: Args
@@ -135,19 +134,19 @@ async fn start_blockchain(
         message_sender.lock().await.broadcast_message(&genesis_message).await;
     }
 
-    spawn_mining_loop(node.clone(), mining_flag.clone(), db_connection.clone(), message_sender.clone());
+    spawn_mining_loop(node.clone(), mining_flag.clone(), db.clone(), message_sender.clone());
 
     Ok(())
 }
 
 
-pub async fn cleanup(db_connection: Arc<Connection>) -> Result<()> {
-    let pool = db_connection.pool.clone();
+pub async fn cleanup(db: DbOperations) -> Result<()> {
+    let pool = db.get_pool().clone();
     drop(pool);
 
     tokio::time::sleep(Duration::from_millis(200)).await;
 
-    db_connection.drop_database().await;
+    db.drop_database().await;
     println!("Database dropped successfully.");
     Ok(())
 }

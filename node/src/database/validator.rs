@@ -1,22 +1,21 @@
-use std::sync::Arc;
-use crate::database::connection::Connection;
+use crate::database::operations::DbOperations;
 use crate::transaction::Transaction;
 use crate::wallet::Wallet;
 
 pub struct Validator {
-    pub db_connection: Arc<Connection>
+    pub db: DbOperations
 }
 
 impl Validator {
-    pub fn new(db_connection: Arc<Connection>) -> Self {
+    pub fn new(db: DbOperations) -> Self {
         Self {
-            db_connection
+            db
         }
     }
 
     pub async fn validate_transaction(&self, transaction: &Transaction) -> bool {
         let sender_address = Wallet::derive_address_hash_from_string(&transaction.sender);
-        match self.db_connection.get_user_balance(&sender_address).await {
+        match self.db.get_user_balance(&sender_address).await {
             Ok(user_balance) => {
                 println!("Transaction user balance valid: {}", user_balance >= transaction.amount);
                 user_balance >= transaction.amount
