@@ -1,10 +1,11 @@
 use crate::block::Block;
+use crate::block_validation_type::BlockValidationType;
 use crate::constants::BLOCKCHAIN_DIFFICULTY;
 
 #[derive(Clone)]
 pub struct Blockchain {
     pub chain: Vec<Block>,
-    invalid_blocks: Vec<Block>
+    pub invalid_blocks: Vec<Block>
 }
 
 impl Blockchain {
@@ -15,9 +16,9 @@ impl Blockchain {
         }
     }
 
-    pub fn is_valid_new_block(&mut self, new_block: &Block) -> bool {
+    pub fn is_valid_new_block(&mut self, new_block: &Block) -> BlockValidationType {
         if self.chain.len() == 0 {
-            return true;
+            return BlockValidationType::Valid;
         }
 
         let last_block = self.chain.last().unwrap();
@@ -28,21 +29,23 @@ impl Blockchain {
             println!("Storing block in case of forked chain");
             self.invalid_blocks.push(new_block.clone());
 
-            return false;
+            return BlockValidationType::Fork;
         }
 
-        new_block.index == last_block.index + 1 &&
-            new_block.hash.starts_with(&"0".repeat(BLOCKCHAIN_DIFFICULTY)) &&
-            new_block.hash == new_block.create_hash()
+        if new_block.index == last_block.index + 1 && new_block.hash.starts_with(&"0".repeat(BLOCKCHAIN_DIFFICULTY)) && new_block.hash == new_block.create_hash() {
+            return BlockValidationType::Valid;
+        }
+
+        BlockValidationType::Invalid
     }
 
-    pub fn add_block_to_chain(&mut self, new_block: &Block) -> bool {
-        if !self.is_valid_new_block(new_block) {
-            return false;
+    pub fn add_block_to_chain(&mut self, new_block: &Block) -> BlockValidationType {
+        let block_validation_type = self.is_valid_new_block(new_block);
+        if block_validation_type == BlockValidationType::Valid {
+            self.chain.push(new_block.clone());
         }
 
-        self.chain.push(new_block.clone());
-        true
+        block_validation_type
     }
 
     pub fn add_block_without_validation(&mut self, new_block: Block) {

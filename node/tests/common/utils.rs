@@ -49,3 +49,11 @@ pub fn create_join_node_args(node_address: String, peer_address: String) -> Args
 
     Args { node_type: full_node }
 }
+
+pub fn mine_block(block: &mut Block) {
+    loop {
+        if block.mine() {
+            break;
+        }
+    }
+}

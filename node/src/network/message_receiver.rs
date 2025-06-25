@@ -3,11 +3,14 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use tokio::sync::Mutex;
 use crate::block::Block;
+use crate::block_validation_type::BlockValidationType;
 use crate::constants::{MINING_REWARD_AMOUNT, MINING_REWARD_DELAY};
 use crate::database::operations::DbOperations;
 use crate::database::validator::Validator;
 use crate::mining_reward::MiningReward;
 use crate::mining_tasks::spawn_update_balances;
+use crate::network::message::Message;
+use crate::network::message_sender::MessageSender;
 use crate::network::node::Node;
 
 pub async fn on_genesis_received(node: Arc<Mutex<Node>>, from: String, genesis_block: Block) {
@@ -25,7 +28,8 @@ pub async fn on_block_received(node: Arc<Mutex<Node>>, mining_flag: Arc<AtomicBo
         }
     }
 
-    if node.lock().await.receive_block(&block) {
+    let block_validation_type = node.lock().await.receive_block(&block);
+    if block_validation_type == BlockValidationType::Valid {
         mining_flag.store(false, Ordering::Relaxed);
         println!("Valid block received from {}... Stopping mining", from);
 
@@ -33,9 +37,39 @@ pub async fn on_block_received(node: Arc<Mutex<Node>>, mining_flag: Arc<AtomicBo
         validator.db.save_mining_reward(mining_reward).await;
         spawn_update_balances(validator.db.clone(), block.transactions);
         apply_mining_reward(validator.db.clone(), block.index);
+    } else if block_validation_type == BlockValidationType::Fork {
+        println!("Fork detected...");
+
+        if node.lock().await.blockchain.invalid_blocks.len() >= 5 {
+            println!("5+ forked blocks detected... Resolving fork.");
+            let mut message_sender = MessageSender::new(node.clone());
+
+            let message = Message::ChainLengthRequest { from: node.lock().await.address.clone() };
+            message_sender.broadcast_message(&message).await;
+        } else {
+            println!("Continuing to mine...");
+        }
     } else {
         println!("Invalid block received from {}... Continuing to mine", from);
     }
+}
+
+pub async fn on_chain_length_request(node: Arc<Mutex<Node>>, from: String) {
+    tokio::spawn(async move {
+        let chain_length = node.lock().await.blockchain.get_length();
+        let message = Message::ChainLengthResponse { from: node.lock().await.address.clone(), length: chain_length };
+        let recipient_node = node.lock().await.get_peer(&from);
+        if recipient_node.is_none() {
+            println!("No peer found with address: {}", from);
+            return;
+        }
+
+        MessageSender::send_message(&message, recipient_node.unwrap()).await;
+    });
+}
+
+pub async fn on_chain_length_response(node: Arc<Mutex<Node>>, from: String) {
+
 }
 
 fn apply_mining_reward(db: DbOperations, block_index: u64) {

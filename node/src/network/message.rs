@@ -10,7 +10,9 @@ pub enum Message {
     PeerConnection { peer_id: String },
     BlockMined { from: String, block: Block },
     TransactionCreated { from: NodeId, transaction: Transaction },
-    GenesisBlock { from: String, genesis_block: Block }
+    GenesisBlock { from: String, genesis_block: Block },
+    ChainLengthRequest { from: String },
+    ChainLengthResponse { from: String, length: usize }
 }
 
 impl Message {

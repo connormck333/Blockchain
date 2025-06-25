@@ -4,6 +4,7 @@ use tokio::net::tcp::OwnedWriteHalf;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 use crate::block::Block;
+use crate::block_validation_type::BlockValidationType;
 use crate::blockchain::Blockchain;
 use crate::transaction::Transaction;
 use crate::wallet::Wallet;
@@ -31,7 +32,7 @@ impl Node {
         }
     }
 
-    pub fn receive_block(&mut self, block: &Block) -> bool {
+    pub fn receive_block(&mut self, block: &Block) -> BlockValidationType {
         self.blockchain.add_block_to_chain(&block)
     }
 
@@ -41,5 +42,9 @@ impl Node {
 
     pub fn add_peer(&mut self, address: String, connection: OwnedWriteHalf) {
         self.peers.insert(address.clone(), connection);
+    }
+
+    pub fn get_peer(&mut self, address: &String) -> Option<&mut OwnedWriteHalf> {
+        self.peers.get_mut(address)
     }
 }

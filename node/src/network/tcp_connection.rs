@@ -8,7 +8,7 @@ use crate::args::args::Args;
 use crate::args::mode::Mode;
 use crate::database::validator::Validator;
 use crate::network::message::Message;
-use crate::network::message_receiver::{on_block_received, on_genesis_received};
+use crate::network::message_receiver::{on_block_received, on_chain_length_request, on_genesis_received};
 use crate::network::message_sender::MessageSender;
 use crate::network::node::Node;
 
@@ -34,6 +34,12 @@ async fn handle_client(stream: TcpStream, node: Arc<Mutex<Node>>, validator: Arc
                     }
                     Message::BlockMined {from, block} => {
                         on_block_received(node.clone(), mining_flag.clone(), validator.clone(), from, block).await;
+                    }
+                    Message::ChainLengthRequest { from } => {
+                        on_chain_length_request(node.clone(), from).await;
+                    }
+                    Message::ChainLengthResponse { from, length } => {
+
                     }
                     _ => {
                         println!("Received unknown message");
