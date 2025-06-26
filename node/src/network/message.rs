@@ -12,7 +12,13 @@ pub enum Message {
     TransactionCreated { from: NodeId, transaction: Transaction },
     GenesisBlock { from: String, genesis_block: Block },
     ChainLengthRequest { from: String },
-    ChainLengthResponse { from: String, length: usize }
+    ChainLengthResponse { from: String, length: usize },
+    BlockAtIndexRequest { from: String, index: usize },
+}
+
+pub struct ChainLength {
+    pub from: String,
+    pub length: usize
 }
 
 impl Message {

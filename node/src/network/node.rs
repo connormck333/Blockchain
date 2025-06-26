@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use serde::de::Unexpected::Option;
 use tokio::net::tcp::OwnedWriteHalf;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 use crate::block::Block;
 use crate::block_validation_type::BlockValidationType;
 use crate::blockchain::Blockchain;
+use crate::network::message::ChainLength;
 use crate::transaction::Transaction;
 use crate::wallet::Wallet;
 
@@ -17,7 +19,8 @@ pub struct Node {
     pub wallet: Wallet,
     pub id: Uuid,
     pub address: String,
-    pub peers: HashMap<String, OwnedWriteHalf>
+    pub peers: HashMap<String, OwnedWriteHalf>,
+    pub max_peer_chain_length: Option<ChainLength>
 }
 
 impl Node {
@@ -28,7 +31,8 @@ impl Node {
             wallet: Wallet::new(),
             id: Uuid::new_v4(),
             address,
-            peers: HashMap::new()
+            peers: HashMap::new(),
+            max_peer_chain_length: None
         }
     }
 

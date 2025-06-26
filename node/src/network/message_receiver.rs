@@ -9,8 +9,8 @@ use crate::database::operations::DbOperations;
 use crate::database::validator::Validator;
 use crate::mining_reward::MiningReward;
 use crate::mining_tasks::spawn_update_balances;
-use crate::network::message::Message;
-use crate::network::message_sender::MessageSender;
+use crate::network::message::{ChainLength, Message};
+use crate::network::message_sender::{broadcast_message, send_message};
 use crate::network::node::Node;
 
 pub async fn on_genesis_received(node: Arc<Mutex<Node>>, from: String, genesis_block: Block) {
@@ -42,10 +42,10 @@ pub async fn on_block_received(node: Arc<Mutex<Node>>, mining_flag: Arc<AtomicBo
 
         if node.lock().await.blockchain.invalid_blocks.len() >= 5 {
             println!("5+ forked blocks detected... Resolving fork.");
-            let mut message_sender = MessageSender::new(node.clone());
 
             let message = Message::ChainLengthRequest { from: node.lock().await.address.clone() };
-            message_sender.broadcast_message(&message).await;
+            broadcast_message(node.clone(), &message).await;
+
         } else {
             println!("Continuing to mine...");
         }
@@ -64,12 +64,16 @@ pub async fn on_chain_length_request(node: Arc<Mutex<Node>>, from: String) {
             return;
         }
 
-        MessageSender::send_message(&message, recipient_node.unwrap()).await;
+        send_message(&message, recipient_node.unwrap()).await;
     });
 }
 
-pub async fn on_chain_length_response(node: Arc<Mutex<Node>>, from: String) {
-
+pub async fn on_chain_length_response(node: Arc<Mutex<Node>>, message: ChainLength) {
+    let mut node = node.lock().await;
+    if message.length > node.max_peer_chain_length {
+        node.max_peer_chain_length = Some(message.length);
+        println!("Updated max_peer_chain_length to {} from peer {}", message.length, message.from);
+    }
 }
 
 fn apply_mining_reward(db: DbOperations, block_index: u64) {

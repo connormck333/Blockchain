@@ -11,3 +11,4 @@ mod mining_reward;
 mod constants;
 pub mod init;
 mod block_validation_type;
+mod tasks;

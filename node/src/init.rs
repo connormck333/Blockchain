@@ -13,7 +13,7 @@ use crate::database::operations::DbOperations;
 use crate::database::validator::Validator;
 use crate::mining_tasks::spawn_mining_loop;
 use crate::network::message::Message;
-use crate::network::message_sender::MessageSender;
+use crate::network::message_sender::broadcast_message;
 use crate::network::node::Node;
 use crate::network::tcp_connection::{create_node, start_peer_connection};
 use crate::server::server::start_server;
@@ -27,7 +27,6 @@ pub async fn test_init(
 ) -> Result<()> {
     let mining_flag = Arc::new(AtomicBool::new(true));
     let validator = Arc::new(Validator::new(db.clone()));
-    let message_sender = Arc::new(Mutex::new(MessageSender::new(node.clone())));
 
     let miner_address = node.lock().await.wallet.address.clone();
     let peer_address = match args.node_type.get_mode() {
@@ -41,7 +40,6 @@ pub async fn test_init(
         mining_flag.clone(),
         node.clone(),
         db.clone(),
-        message_sender.clone(),
         miner_address,
         args
     ).await
@@ -53,7 +51,6 @@ pub async fn init() -> Result<()> {
     let db = Arc::new(Connection::new().await);
     let validator = Arc::new(Validator::new(db.clone()));
     let node = create_node(&args, validator.clone(), mining_flag.clone()).await;
-    let message_sender = Arc::new(Mutex::new(MessageSender::new(node.clone())));
     let mempool = node.lock().await.mempool.clone();
 
     let wallet = node.lock().await.wallet.clone();
@@ -68,7 +65,6 @@ pub async fn init() -> Result<()> {
         mining_flag.clone(),
         node.clone(),
         db.clone(),
-        message_sender.clone(),
         miner_address,
         args.clone()
     ).await?;
@@ -102,7 +98,6 @@ async fn start_blockchain(
     mining_flag: Arc<AtomicBool>,
     node: Arc<Mutex<Node>>,
     db: DbOperations,
-    message_sender: Arc<Mutex<MessageSender>>,
     miner_address: String,
     args: Args
 ) -> Result<()> {
@@ -131,10 +126,10 @@ async fn start_blockchain(
             from: node.lock().await.address.clone(),
             genesis_block: genesis_block.unwrap().clone()
         };
-        message_sender.lock().await.broadcast_message(&genesis_message).await;
+        broadcast_message(node.clone(), &genesis_message).await;
     }
 
-    spawn_mining_loop(node.clone(), mining_flag.clone(), db.clone(), message_sender.clone());
+    spawn_mining_loop(node.clone(), mining_flag.clone(), db.clone());
 
     Ok(())
 }

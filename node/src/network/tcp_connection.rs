@@ -7,9 +7,9 @@ use tokio::sync::Mutex;
 use crate::args::args::Args;
 use crate::args::mode::Mode;
 use crate::database::validator::Validator;
-use crate::network::message::Message;
-use crate::network::message_receiver::{on_block_received, on_chain_length_request, on_genesis_received};
-use crate::network::message_sender::MessageSender;
+use crate::network::message::{ChainLength, Message};
+use crate::network::message_receiver::{on_block_received, on_chain_length_request, on_chain_length_response, on_genesis_received};
+use crate::network::message_sender::send_message;
 use crate::network::node::Node;
 
 async fn handle_client(stream: TcpStream, node: Arc<Mutex<Node>>, validator: Arc<Validator>, mining_flag: Arc<AtomicBool>) {
@@ -39,7 +39,8 @@ async fn handle_client(stream: TcpStream, node: Arc<Mutex<Node>>, validator: Arc
                         on_chain_length_request(node.clone(), from).await;
                     }
                     Message::ChainLengthResponse { from, length } => {
-
+                        let chain_length_message = ChainLength {from, length};
+                        on_chain_length_response(node.clone(), chain_length_message).await;
                     }
                     _ => {
                         println!("Received unknown message");
@@ -64,7 +65,7 @@ pub async fn connect_to_peer(node: Arc<Mutex<Node>>, peer_address: &str, return_
                 let client_address = node.lock().await.address.clone();
                 let connection_message = Message::PeerConnection { peer_id: client_address.clone() };
 
-                MessageSender::send_message(&connection_message, &mut writer).await;
+                send_message(&connection_message, &mut writer).await;
             }
 
             node.lock().await.add_peer(peer_address.to_string(), writer);
