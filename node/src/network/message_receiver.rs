@@ -12,6 +12,7 @@ use crate::mining_tasks::spawn_update_balances;
 use crate::network::message::{ChainLength, Message};
 use crate::network::message_sender::{broadcast_message, send_message};
 use crate::network::node::Node;
+use crate::tasks::fork_handling::wait_and_send_block_hashes;
 
 pub async fn on_genesis_received(node: Arc<Mutex<Node>>, from: String, genesis_block: Block) {
     tokio::time::sleep(Duration::from_millis(1000)).await;
@@ -40,12 +41,18 @@ pub async fn on_block_received(node: Arc<Mutex<Node>>, mining_flag: Arc<AtomicBo
     } else if block_validation_type == BlockValidationType::Fork {
         println!("Fork detected...");
 
-        if node.lock().await.blockchain.invalid_blocks.len() >= 5 {
+        let (address, blockchain, max_peer_chain_length) = {
+            let locked_node = node.lock().await;
+            (locked_node.address.clone(), locked_node.blockchain.clone(), locked_node.max_peer_chain_length.clone())
+        };
+        if blockchain.invalid_blocks.len() >= 5 && max_peer_chain_length.is_none() {
             println!("5+ forked blocks detected... Resolving fork.");
+            mining_flag.store(false, Ordering::Relaxed);
 
-            let message = Message::ChainLengthRequest { from: node.lock().await.address.clone() };
+            let message = Message::ChainLengthRequest { from: address.clone() };
             broadcast_message(node.clone(), &message).await;
 
+            tokio::spawn(wait_and_send_block_hashes(node.clone()));
         } else {
             println!("Continuing to mine...");
         }
@@ -70,16 +77,15 @@ pub async fn on_chain_length_request(node: Arc<Mutex<Node>>, from: String) {
 }
 
 pub async fn on_chain_length_response(node: Arc<Mutex<Node>>, message: ChainLength) {
-    let max_peer_chain_length = node.lock().await.max_peer_chain_length.clone();
-    if let Some(max_length) = max_peer_chain_length {
-        if message.length > max_length.length {
-            node.lock().await.max_peer_chain_length = Some(ChainLength {
-                from: message.from.clone(),
-                length: message.length,
-            });
-            println!("Updated max_peer_chain_length to {} from peer {}", message.length, message.from);
-            return;
-        }
+    let current_max_length = node.lock().await.max_peer_chain_length.clone();
+
+    if current_max_length.is_none() || message.length > current_max_length.unwrap().length {
+        node.lock().await.max_peer_chain_length = Some(ChainLength {
+            from: message.from.clone(),
+            length: message.length
+        });
+        println!("Updated max_peer_chain_length to {} from peer {}", message.length, message.from);
+        return;
     }
 }
 

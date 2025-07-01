@@ -18,6 +18,10 @@ pub fn spawn_mining_loop(
 ) {
     tokio::spawn(async move {
         loop {
+            if !mining_flag.load(Ordering::Relaxed) {
+                tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                continue;
+            }
             if node.lock().await.blockchain.get_length() > 0 {
                 let mined_block: Option<Block> = spawn_mining(node.clone(), mining_flag.clone()).await;
 
@@ -37,7 +41,10 @@ pub fn spawn_mining_loop(
 
                     spawn_update_balances(db.clone(), transactions);
                 } else {
-                    mining_flag.store(true, Ordering::Relaxed);
+                    if node.lock().await.blockchain.invalid_blocks.len() < 5 {
+                        println!("Resuming mining...");
+                        mining_flag.store(true, Ordering::Relaxed);
+                    }
                 }
             }
         }
@@ -68,7 +75,7 @@ fn mine_block(
     cancel_flag: Arc<AtomicBool>,
     node_address: String
 ) -> Option<Block> {
-    println!("-----> Transaction count picked up for mining: {}", transactions.len());
+    // println!("-----> Transaction count picked up for mining: {}", transactions.len());
     let mut block = Block::new(block_index, previous_hash, transactions, node_address);
 
     while cancel_flag.load(Ordering::Relaxed) == true {

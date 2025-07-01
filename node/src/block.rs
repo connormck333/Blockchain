@@ -23,7 +23,7 @@ struct HashlessBlock {
     difficulty: usize,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Block {
     pub index: u64,
     pub timestamp: i64,

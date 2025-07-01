@@ -40,14 +40,14 @@ async fn handle_client(stream: TcpStream, node: Arc<Mutex<Node>>, validator: Arc
                         on_chain_length_request(node.clone(), from).await;
                     }
                     Message::ChainLengthResponse { from, length } => {
-                        let chain_length_message = ChainLength {from, length};
+                        let chain_length_message = ChainLength {from, length };
                         on_chain_length_response(node.clone(), chain_length_message).await;
                     }
                     Message::BlockHashesRequest { from, hashes } => {
                         on_block_hashes_request(node.clone(), from, hashes).await;
                     }
                     Message::BlockHashesResponse { from, hashes, common_index } => {
-                        on_block_hashes_response(node.clone(), from, hashes, common_index).await;
+                        on_block_hashes_response(node.clone(), mining_flag.clone(), from, hashes, common_index).await;
                     }
                     Message::GetBlocks { from, hashes } => {
                         let blocks_to_send = get_blocks_with_hash(node.clone(), hashes).await;
@@ -56,7 +56,10 @@ async fn handle_client(stream: TcpStream, node: Arc<Mutex<Node>>, validator: Arc
                             blocks: blocks_to_send
                         };
 
-                        if let Err(e) = writer.write_all(response.to_vec().as_slice()).await {
+                        let mut response_bytes = response.to_vec();
+                        response_bytes.push(b'\n');
+
+                        if let Err(e) = writer.write_all(&response_bytes).await {
                             println!("Failed to send blocks: {:?}", e);
                         } else {
                             println!("Sent blocks to {}", from.clone());

@@ -1,4 +1,5 @@
-use std::sync::Arc;
+use std::sync::{atomic, Arc};
+use std::sync::atomic::AtomicBool;
 use tokio::sync::Mutex;
 use crate::block::Block;
 use crate::network::message::Message;
@@ -20,8 +21,9 @@ pub async fn wait_and_send_block_hashes(node: Arc<Mutex<Node>>) {
 
     tokio::spawn(async move {
         if let Some(max_length) = max_peer_chain_length {
-            let start_index = blockchain.chain.len().saturating_sub(20);
-            let hashes = blockchain.chain[start_index..]
+            let start_index = (blockchain.invalid_blocks[0].index - 1) as usize;
+            let end_index = (start_index + 50).min(blockchain.chain.len());
+            let hashes = blockchain.chain
                 .iter()
                 .rev()
                 .map(|block| block.hash.clone())
@@ -73,7 +75,7 @@ pub async fn on_block_hashes_request(node: Arc<Mutex<Node>>, from: String, hashe
     println!("No overlap found with received hashes from {}", from);
 }
 
-pub async fn on_block_hashes_response(node: Arc<Mutex<Node>>, from: String, hashes: Vec<String>, common_index: usize) {
+pub async fn on_block_hashes_response(node: Arc<Mutex<Node>>, mining_flag: Arc<AtomicBool>, from: String, hashes: Vec<String>, common_index: usize) {
     let max_peer_chain_length = node.lock().await.max_peer_chain_length.clone();
     if let Some(expected_peer) = max_peer_chain_length {
         if expected_peer.from != from {
@@ -95,14 +97,26 @@ pub async fn on_block_hashes_response(node: Arc<Mutex<Node>>, from: String, hash
         }
 
         let blocks_response = send_get_blocks_request(node.clone(), missing_blocks, &from).await;
-        if let Some(blocks) = blocks_response {
-            if let Message::BlockList { blocks, .. } = blocks {
+        if let Some(msg) = blocks_response {
+            if let Message::BlockList { blocks, .. } = msg {
                 valid_blocks.extend(blocks);
                 valid_blocks.sort_by_key(|block| block.index);
-                blockchain.extend(valid_blocks);
+
+                let mut last_index = common_index as u64;
+                for block in valid_blocks {
+                    if block.index == last_index + 1 {
+                        blockchain.push(block);
+                        last_index += 1;
+                    } else {
+                        println!("Skipping block {} as it is not the next in sequence after {}", block.index, last_index);
+                    }
+                }
 
                 node.lock().await.blockchain.chain = blockchain;
+                node.lock().await.blockchain.invalid_blocks = vec![];
                 println!("Received and added blocks from peer {}", from);
+
+                mining_flag.store(true, atomic::Ordering::Release);
             } else {
                 println!("Unexpected message type received in block hashes response.");
             }

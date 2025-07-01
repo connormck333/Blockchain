@@ -11,7 +11,7 @@ pub enum Message {
     BlockMined { from: String, block: Block },
     TransactionCreated { from: NodeId, transaction: Transaction },
     GenesisBlock { from: String, genesis_block: Block },
-    ChainLengthRequest { from: String },
+    ChainLengthRequest { from: String,  },
     ChainLengthResponse { from: String, length: usize },
     BlockHashesRequest { from: String, hashes: Vec<String> },
     BlockHashesResponse { from: String, hashes: Vec<String>, common_index: usize },
