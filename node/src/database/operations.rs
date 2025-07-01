@@ -5,8 +5,7 @@ use crate::mining_reward::MiningReward;
 
 pub type DbOperations = Arc<dyn DatabaseOperations + Send + Sync>;
 
-#[cfg(any(test, feature = "mock"))]
-#[automock]
+#[cfg_attr(any(test, feature = "mock"), automock)]
 #[async_trait::async_trait]
 pub trait DatabaseOperations: Send + Sync {
     async fn create_user(&self, user_address: String, balance: u64) -> bool;

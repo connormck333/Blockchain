@@ -13,9 +13,13 @@ pub enum Message {
     GenesisBlock { from: String, genesis_block: Block },
     ChainLengthRequest { from: String },
     ChainLengthResponse { from: String, length: usize },
-    BlockAtIndexRequest { from: String, index: usize },
+    BlockHashesRequest { from: String, hashes: Vec<String> },
+    BlockHashesResponse { from: String, hashes: Vec<String>, common_index: usize },
+    GetBlocks { from: String, hashes: Vec<String> },
+    BlockList { from: String, blocks: Vec<Block> }
 }
 
+#[derive(Clone)]
 pub struct ChainLength {
     pub from: String,
     pub length: usize

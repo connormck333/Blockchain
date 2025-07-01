@@ -56,23 +56,30 @@ pub async fn on_block_received(node: Arc<Mutex<Node>>, mining_flag: Arc<AtomicBo
 
 pub async fn on_chain_length_request(node: Arc<Mutex<Node>>, from: String) {
     tokio::spawn(async move {
-        let chain_length = node.lock().await.blockchain.get_length();
-        let message = Message::ChainLengthResponse { from: node.lock().await.address.clone(), length: chain_length };
-        let recipient_node = node.lock().await.get_peer(&from);
+        let mut locked_node = node.lock().await;
+        let chain_length = locked_node.blockchain.get_length();
+        let message = Message::ChainLengthResponse { from: locked_node.address.clone(), length: chain_length };
+        let recipient_node = locked_node.get_peer(&from);
         if recipient_node.is_none() {
             println!("No peer found with address: {}", from);
             return;
         }
 
-        send_message(&message, recipient_node.unwrap()).await;
+        send_message(&message, &mut recipient_node.unwrap().writer).await;
     });
 }
 
 pub async fn on_chain_length_response(node: Arc<Mutex<Node>>, message: ChainLength) {
-    let mut node = node.lock().await;
-    if message.length > node.max_peer_chain_length {
-        node.max_peer_chain_length = Some(message.length);
-        println!("Updated max_peer_chain_length to {} from peer {}", message.length, message.from);
+    let max_peer_chain_length = node.lock().await.max_peer_chain_length.clone();
+    if let Some(max_length) = max_peer_chain_length {
+        if message.length > max_length.length {
+            node.lock().await.max_peer_chain_length = Some(ChainLength {
+                from: message.from.clone(),
+                length: message.length,
+            });
+            println!("Updated max_peer_chain_length to {} from peer {}", message.length, message.from);
+            return;
+        }
     }
 }
 

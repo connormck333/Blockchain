@@ -1,23 +1,143 @@
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use crate::block::Block;
 use crate::network::message::Message;
-use crate::network::message_sender::send_message;
+use crate::network::message_sender::{send_message, send_message_expect_response};
 use crate::network::node::Node;
 
-pub async fn wait_for_length_responses(node: Arc<Mutex<Node>>) {
+pub async fn wait_and_send_block_hashes(node: Arc<Mutex<Node>>) {
     // Sleep for 10 seconds to allow time for length responses to be received
     tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
 
-    tokio::spawn(async move {
-        let mut locked_node = node.lock().await;
-        if let Some(max_length) = locked_node.max_peer_chain_length {
-            let latest_block_index = locked_node.blockchain.get_latest_block().index as usize;
-            let message = Message::BlockAtIndexRequest { from: locked_node.address.clone(), index: latest_block_index + 1 };
-            let recipient_node = locked_node.get_peer(max_length.from);
+    let (max_peer_chain_length, blockchain, address) = {
+        let locked_node = node.lock().await;
+        (
+            locked_node.max_peer_chain_length.clone(),
+            locked_node.blockchain.clone(),
+            locked_node.address.clone(),
+        )
+    };
 
-            send_message(&message, recipient_node).await;
+    tokio::spawn(async move {
+        if let Some(max_length) = max_peer_chain_length {
+            let start_index = blockchain.chain.len().saturating_sub(20);
+            let hashes = blockchain.chain[start_index..]
+                .iter()
+                .rev()
+                .map(|block| block.hash.clone())
+                .collect();
+
+            let message = Message::BlockHashesRequest {
+                from: address,
+                hashes
+            };
+            if let Some(recipient_node) = node.lock().await.get_peer(max_length.from.clone().as_str()) {
+                send_message(&message, &mut recipient_node.writer).await;
+            } else {
+                println!("No peer found to send block hashes request.");
+            }
         } else {
             println!("No peer chain lengths received.");
         }
     });
+}
+
+pub async fn on_block_hashes_request(node: Arc<Mutex<Node>>, from: String, hashes: Vec<String>) {
+    let mut locked_node = node.lock().await;
+    let blockchain = locked_node.blockchain.clone();
+
+    for hash in hashes {
+        if let Some(overlap_block) = blockchain.chain.iter().find(|b| b.hash == hash) {
+            println!("Overlap found with block {} from {}", overlap_block.index, from);
+
+            let overlap_index = overlap_block.index as usize;
+            let response_hashes = blockchain.chain[overlap_index..]
+                .iter()
+                .map(|b| b.hash.clone())
+                .collect();
+
+            let message = Message::BlockHashesResponse {
+                from: locked_node.address.clone(),
+                hashes: response_hashes,
+                common_index: overlap_index
+            };
+
+            let peer_response = locked_node.get_peer(&from);
+            if let Some(peer) = peer_response {
+                send_message(&message, &mut peer.writer).await;
+                return;
+            }
+        }
+    }
+
+    println!("No overlap found with received hashes from {}", from);
+}
+
+pub async fn on_block_hashes_response(node: Arc<Mutex<Node>>, from: String, hashes: Vec<String>, common_index: usize) {
+    let max_peer_chain_length = node.lock().await.max_peer_chain_length.clone();
+    if let Some(expected_peer) = max_peer_chain_length {
+        if expected_peer.from != from {
+            println!("Ignoring block hashes response from unexpected peer: {}", from);
+            return;
+        }
+
+        let mut blockchain = node.lock().await.blockchain.chain.clone()[..common_index + 1].to_vec();
+        let invalid_blocks = node.lock().await.blockchain.invalid_blocks.clone();
+        let mut missing_blocks: Vec<String> = vec![];
+        let mut valid_blocks: Vec<Block> = vec![];
+
+        for hash in hashes {
+            if let Some(block) = invalid_blocks.iter().find(|b| b.hash == hash) {
+                valid_blocks.push(block.clone());
+            } else {
+                missing_blocks.push(hash);
+            }
+        }
+
+        let blocks_response = send_get_blocks_request(node.clone(), missing_blocks, &from).await;
+        if let Some(blocks) = blocks_response {
+            if let Message::BlockList { blocks, .. } = blocks {
+                valid_blocks.extend(blocks);
+                valid_blocks.sort_by_key(|block| block.index);
+                blockchain.extend(valid_blocks);
+
+                node.lock().await.blockchain.chain = blockchain;
+                println!("Received and added blocks from peer {}", from);
+            } else {
+                println!("Unexpected message type received in block hashes response.");
+            }
+        } else {
+            println!("Failed to retrieve missing blocks from peer {}", from);
+        }
+    }
+}
+
+pub async fn send_get_blocks_request(node: Arc<Mutex<Node>>, hashes: Vec<String>, recipient: &String) -> Option<Message> {
+    let mut locked_node = node.lock().await;
+    let message = Message::GetBlocks {
+        from: locked_node.address.clone(),
+        hashes
+    };
+
+    let recipient_node = locked_node.get_peer(recipient);
+    if let Some(peer) = recipient_node {
+        return send_message_expect_response(&message, &mut peer.writer, &mut peer.reader).await;
+    } else {
+        println!("No peer found to send get blocks request.");
+    }
+
+    None
+}
+
+pub async fn get_blocks_with_hash(node: Arc<Mutex<Node>>, hashes: Vec<String>) -> Vec<Block> {
+    let blockchain = node.lock().await.blockchain.clone();
+    let mut blocks_to_send: Vec<Block> = vec![];
+
+    for hash in hashes {
+        if let Some(block) = blockchain.chain.iter().find(|b| b.hash == hash) {
+            blocks_to_send.push(block.clone());
+        }
+    }
+
+    blocks_to_send
 }

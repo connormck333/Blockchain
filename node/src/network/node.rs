@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 use std::sync::Arc;
-use serde::de::Unexpected::Option;
-use tokio::net::tcp::OwnedWriteHalf;
+use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 use crate::block::Block;
 use crate::block_validation_type::BlockValidationType;
 use crate::blockchain::Blockchain;
 use crate::network::message::ChainLength;
+use crate::network::peer::Peer;
 use crate::transaction::Transaction;
 use crate::wallet::Wallet;
 
@@ -19,7 +19,7 @@ pub struct Node {
     pub wallet: Wallet,
     pub id: Uuid,
     pub address: String,
-    pub peers: HashMap<String, OwnedWriteHalf>,
+    pub peers: HashMap<String, Peer>,
     pub max_peer_chain_length: Option<ChainLength>
 }
 
@@ -44,11 +44,11 @@ impl Node {
         self.mempool.lock().await.retain(|tx| !transactions.contains(tx));
     }
 
-    pub fn add_peer(&mut self, address: String, connection: OwnedWriteHalf) {
-        self.peers.insert(address.clone(), connection);
+    pub fn add_peer(&mut self, address: String, writer: OwnedWriteHalf, reader: OwnedReadHalf) {
+        self.peers.insert(address.clone(), Peer::new(address, writer, reader));
     }
 
-    pub fn get_peer(&mut self, address: &String) -> Option<&mut OwnedWriteHalf> {
+    pub fn get_peer(&mut self, address: &str) -> Option<&mut Peer> {
         self.peers.get_mut(address)
     }
 }

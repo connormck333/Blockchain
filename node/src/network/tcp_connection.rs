@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::time::Duration;
-use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Mutex;
 use crate::args::args::Args;
@@ -11,9 +11,10 @@ use crate::network::message::{ChainLength, Message};
 use crate::network::message_receiver::{on_block_received, on_chain_length_request, on_chain_length_response, on_genesis_received};
 use crate::network::message_sender::send_message;
 use crate::network::node::Node;
+use crate::tasks::fork_handling::{get_blocks_with_hash, on_block_hashes_request, on_block_hashes_response};
 
 async fn handle_client(stream: TcpStream, node: Arc<Mutex<Node>>, validator: Arc<Validator>, mining_flag: Arc<AtomicBool>) {
-    let (reader, _writer) = stream.into_split();
+    let (reader, mut writer) = stream.into_split();
     let mut lines = BufReader::new(reader).lines();
 
     loop {
@@ -42,6 +43,25 @@ async fn handle_client(stream: TcpStream, node: Arc<Mutex<Node>>, validator: Arc
                         let chain_length_message = ChainLength {from, length};
                         on_chain_length_response(node.clone(), chain_length_message).await;
                     }
+                    Message::BlockHashesRequest { from, hashes } => {
+                        on_block_hashes_request(node.clone(), from, hashes).await;
+                    }
+                    Message::BlockHashesResponse { from, hashes, common_index } => {
+                        on_block_hashes_response(node.clone(), from, hashes, common_index).await;
+                    }
+                    Message::GetBlocks { from, hashes } => {
+                        let blocks_to_send = get_blocks_with_hash(node.clone(), hashes).await;
+                        let response = Message::BlockList {
+                            from: node.lock().await.address.clone(),
+                            blocks: blocks_to_send
+                        };
+
+                        if let Err(e) = writer.write_all(response.to_vec().as_slice()).await {
+                            println!("Failed to send blocks: {:?}", e);
+                        } else {
+                            println!("Sent blocks to {}", from.clone());
+                        }
+                    }
                     _ => {
                         println!("Received unknown message");
                     }
@@ -59,7 +79,7 @@ pub async fn connect_to_peer(node: Arc<Mutex<Node>>, peer_address: &str, return_
         Ok(stream) => {
             println!("Successfully connected to peer {}", peer_address);
 
-            let (_, mut writer) = stream.into_split();
+            let (reader, mut writer) = stream.into_split();
 
             if return_address {
                 let client_address = node.lock().await.address.clone();
@@ -68,7 +88,7 @@ pub async fn connect_to_peer(node: Arc<Mutex<Node>>, peer_address: &str, return_
                 send_message(&connection_message, &mut writer).await;
             }
 
-            node.lock().await.add_peer(peer_address.to_string(), writer);
+            node.lock().await.add_peer(peer_address.to_string(), writer, reader);
         }
         Err(e) => {
             println!("Failed to connect to peer {}: {:?}", peer_address, e);
@@ -103,7 +123,7 @@ pub async fn create_node(args: &Args, validator: Arc<Validator>, mining_flag: Ar
         Mode::JOIN { node_address, peer_address } => (node_address.clone(), Some(peer_address.clone()))
     };
 
-    let mut node = Arc::new(Mutex::new(Node::new(node_address.clone())));
+    let node = Arc::new(Mutex::new(Node::new(node_address.clone())));
     start_peer_connection(node.clone(), validator, mining_flag, peer_address).await;
 
     node
