@@ -22,29 +22,27 @@ pub fn spawn_mining_loop(
                 tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
                 continue;
             }
-            if node.lock().await.blockchain.get_length() > 0 {
-                let mined_block: Option<Block> = spawn_mining(node.clone(), mining_flag.clone()).await;
+            let mined_block: Option<Block> = spawn_mining(node.clone(), mining_flag.clone()).await;
 
-                if let Some(block) = mined_block {
-                    node.lock().await.blockchain.add_block_without_validation(block.clone());
-                    node.lock().await.delete_txs_from_mempool(&block.transactions).await;
+            if let Some(block) = mined_block {
+                node.lock().await.blockchain.add_block_without_validation(block.clone());
+                node.lock().await.delete_txs_from_mempool(&block.transactions).await;
 
-                    let node_address = node.lock().await.wallet.address.clone();
-                    save_mining_reward(db.clone(), node_address, block.index).await;
+                let node_address = node.lock().await.wallet.address.clone();
+                save_mining_reward(db.clone(), node_address, block.index).await;
 
-                    let transactions = block.transactions.clone();
-                    let mined_block_message = Message::BlockMined {
-                        from: node.lock().await.address.clone(),
-                        block
-                    };
-                    broadcast_message(node.clone(), &mined_block_message).await;
+                let transactions = block.transactions.clone();
+                let mined_block_message = Message::BlockMined {
+                    from: node.lock().await.address.clone(),
+                    block
+                };
+                broadcast_message(node.clone(), &mined_block_message).await;
 
-                    spawn_update_balances(db.clone(), transactions);
-                } else {
-                    if node.lock().await.blockchain.invalid_blocks.len() < 5 {
-                        println!("Resuming mining...");
-                        mining_flag.store(true, Ordering::Relaxed);
-                    }
+                spawn_update_balances(db.clone(), transactions);
+            } else {
+                if node.lock().await.blockchain.invalid_blocks.len() < 5 {
+                    println!("Resuming mining...");
+                    mining_flag.store(true, Ordering::Relaxed);
                 }
             }
         }

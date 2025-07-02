@@ -3,6 +3,7 @@ use std::sync::atomic::AtomicBool;
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
+use tokio::net::tcp::OwnedWriteHalf;
 use tokio::sync::Mutex;
 use crate::args::args::Args;
 use crate::args::mode::Mode;
@@ -12,6 +13,7 @@ use crate::network::message_receiver::{on_block_received, on_chain_length_reques
 use crate::network::message_sender::send_message;
 use crate::network::node::Node;
 use crate::tasks::fork_handling::{get_blocks_with_hash, on_block_hashes_request, on_block_hashes_response};
+use crate::tasks::new_node_tasks::create_full_chain_response;
 
 async fn handle_client(stream: TcpStream, node: Arc<Mutex<Node>>, validator: Arc<Validator>, mining_flag: Arc<AtomicBool>) {
     let (reader, mut writer) = stream.into_split();
@@ -23,24 +25,29 @@ async fn handle_client(stream: TcpStream, node: Arc<Mutex<Node>>, validator: Arc
 
             if let Ok(message) = serde_json::from_str::<Message>(&line) {
                 match message {
-                    Message::PeerConnection { peer_id } => {
-                        println!("Received peer connection message from {}", peer_id);
+                    Message::PeerConnection { from, known_addresses } => {
+                        println!("Received peer connection message from {}", from);
                         let node_clone = node.clone();
                         tokio::spawn(async move {
-                            connect_to_peer(node_clone, &peer_id, false).await;
+                            connect_to_peer(node_clone, &from, false).await;
                         });
+                        connect_to_many_peers(node.clone(), known_addresses, false).await;
                     }
-                    Message::GenesisBlock {from, genesis_block} => {
+                    Message::FullChainRequest { from: _ } => {
+                        let response = create_full_chain_response(node.clone()).await;
+                        send_response(&mut writer, response).await;
+                    }
+                    Message::GenesisBlock { from, genesis_block } => {
                         on_genesis_received(node.clone(), from, genesis_block).await;
                     }
-                    Message::BlockMined {from, block} => {
+                    Message::BlockMined { from, block } => {
                         on_block_received(node.clone(), mining_flag.clone(), validator.clone(), from, block).await;
                     }
                     Message::ChainLengthRequest { from } => {
                         on_chain_length_request(node.clone(), from).await;
                     }
                     Message::ChainLengthResponse { from, length } => {
-                        let chain_length_message = ChainLength {from, length };
+                        let chain_length_message = ChainLength { from, length };
                         on_chain_length_response(node.clone(), chain_length_message).await;
                     }
                     Message::BlockHashesRequest { from, hashes } => {
@@ -49,21 +56,13 @@ async fn handle_client(stream: TcpStream, node: Arc<Mutex<Node>>, validator: Arc
                     Message::BlockHashesResponse { from, hashes, common_index } => {
                         on_block_hashes_response(node.clone(), mining_flag.clone(), from, hashes, common_index).await;
                     }
-                    Message::GetBlocks { from, hashes } => {
+                    Message::GetBlocks { from: _, hashes } => {
                         let blocks_to_send = get_blocks_with_hash(node.clone(), hashes).await;
                         let response = Message::BlockList {
                             from: node.lock().await.address.clone(),
                             blocks: blocks_to_send
                         };
-
-                        let mut response_bytes = response.to_vec();
-                        response_bytes.push(b'\n');
-
-                        if let Err(e) = writer.write_all(&response_bytes).await {
-                            println!("Failed to send blocks: {:?}", e);
-                        } else {
-                            println!("Sent blocks to {}", from.clone());
-                        }
+                        send_response(&mut writer, response).await;
                     }
                     _ => {
                         println!("Received unknown message");
@@ -76,6 +75,23 @@ async fn handle_client(stream: TcpStream, node: Arc<Mutex<Node>>, validator: Arc
     }
 }
 
+async fn send_response(recipient: &mut OwnedWriteHalf, response: Message) {
+    let mut response_bytes = response.to_vec();
+    response_bytes.push(b'\n');
+
+    if let Err(e) = recipient.write_all(&response_bytes).await {
+        println!("Failed to send blocks: {:?}", e);
+    }
+}
+
+async fn connect_to_many_peers(node: Arc<Mutex<Node>>, peer_addresses: Vec<String>, return_address: bool) {
+    tokio::spawn(async move {
+        for peer_address in peer_addresses {
+            connect_to_peer(node.clone(), &peer_address, return_address).await;
+        }
+    });
+}
+
 pub async fn connect_to_peer(node: Arc<Mutex<Node>>, peer_address: &str, return_address: bool) {
     println!("Connecting to {}", peer_address);
     match TcpStream::connect(peer_address).await {
@@ -85,8 +101,15 @@ pub async fn connect_to_peer(node: Arc<Mutex<Node>>, peer_address: &str, return_
             let (reader, mut writer) = stream.into_split();
 
             if return_address {
-                let client_address = node.lock().await.address.clone();
-                let connection_message = Message::PeerConnection { peer_id: client_address.clone() };
+                let (node_address, known_addresses) = {
+                    let locked_node = node.lock().await;
+                    let peers: Vec<String> = locked_node.peers.iter()
+                        .map(|p| p.1.address.clone())
+                        .collect();
+                    (locked_node.address.clone(), peers)
+                };
+
+                let connection_message = Message::PeerConnection { from: node_address.clone(), known_addresses };
 
                 send_message(&connection_message, &mut writer).await;
             }

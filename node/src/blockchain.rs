@@ -5,14 +5,16 @@ use crate::constants::BLOCKCHAIN_DIFFICULTY;
 #[derive(Clone)]
 pub struct Blockchain {
     pub chain: Vec<Block>,
-    pub invalid_blocks: Vec<Block>
+    pub invalid_blocks: Vec<Block>,
+    pub pending_blocks: Vec<Block>,
 }
 
 impl Blockchain {
     pub fn new() -> Self {
         Self {
             chain: vec![],
-            invalid_blocks: vec![]
+            invalid_blocks: vec![],
+            pending_blocks: vec![],
         }
     }
 
@@ -37,6 +39,10 @@ impl Blockchain {
         }
 
         BlockValidationType::Invalid
+    }
+
+    pub fn add_pending_block(&mut self, new_block: Block) {
+        self.pending_blocks.push(new_block);
     }
 
     pub fn add_block_to_chain(&mut self, new_block: &Block) -> BlockValidationType {

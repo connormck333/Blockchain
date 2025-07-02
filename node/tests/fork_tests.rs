@@ -2,27 +2,16 @@ mod common;
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
     use MockChain::block::Block;
-    use MockChain::database::operations::MockDatabaseOperations;
-    use MockChain::database::structs::recipient_address::RecipientAddress;
     use MockChain::init::test_init;
-    use crate::common::utils::{create_join_node_args, create_node, create_open_node_args, init_logger, mine_block, wait_for_block_at_index, wait_for_genesis};
+    use crate::common::utils::{create_join_node_args, create_mocked_database, create_node, create_open_node_args, init_logger, mine_block, wait_for_block_at_index, wait_for_genesis};
 
     #[tokio::test]
     async fn should_detect_fork_and_resolve() {
         dotenv::dotenv().ok();
         init_logger();
 
-        let recipient = RecipientAddress { recipient_address: "recipient".to_string() };
-        let mut mocked_db = MockDatabaseOperations::new();
-        mocked_db.expect_get_user_balance().returning(|_| Ok(1000));
-        mocked_db.expect_update_user_balance().returning(|_, _| true);
-        mocked_db.expect_get_mining_reward_at_block_index().returning(move |_| Ok(recipient.clone()));
-        mocked_db.expect_save_mining_reward().returning(|_| true);
-        mocked_db.expect_create_user_and_update_balance().returning(|_, _| ());
-
-        let db = Arc::new(mocked_db);
+        let db = create_mocked_database();
 
         let node_address_1 = "127.0.0.1:8080".to_string();
         let node_1 = create_node(node_address_1.clone());
@@ -37,13 +26,13 @@ mod tests {
         let genesis_block = wait_for_genesis(node_1.clone()).await;
 
         // Spawn the second node & create another forked block
-        let mut forked_block_2 = Block::new(1, genesis_block.hash.clone(), vec![], node_address_1.clone());
-        mine_block(&mut forked_block_2);
+        let mut forked_block = Block::new(1, genesis_block.hash.clone(), vec![], node_address_1.clone());
+        mine_block(&mut forked_block);
         tokio::spawn(test_init(node_2.clone(), db.clone(), args_2.clone()));
 
         // Wait for genesis to be received by node 2 & add the forked block
         let genesis_block_2 = wait_for_genesis(node_2.clone()).await;
-        node_2.lock().await.blockchain.add_block_to_chain(&forked_block_2);
+        node_2.lock().await.blockchain.add_block_to_chain(&forked_block);
 
         // Ensure both nodes have the same genesis block
         assert!(genesis_block.equals(&genesis_block_2));

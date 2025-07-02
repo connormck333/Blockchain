@@ -12,11 +12,10 @@ use crate::database::connection::Connection;
 use crate::database::operations::DbOperations;
 use crate::database::validator::Validator;
 use crate::mining_tasks::spawn_mining_loop;
-use crate::network::message::Message;
-use crate::network::message_sender::broadcast_message;
 use crate::network::node::Node;
 use crate::network::tcp_connection::{create_node, start_peer_connection};
 use crate::server::server::start_server;
+use crate::tasks::genesis_tasks::{construct_blockchain, send_genesis_block};
 
 extern crate sqlx;
 
@@ -122,18 +121,19 @@ async fn start_blockchain(
     }
 
     if genesis_block.is_some() {
-        let genesis_message = Message::GenesisBlock {
-            from: node.lock().await.address.clone(),
-            genesis_block: genesis_block.unwrap().clone()
-        };
-        broadcast_message(node.clone(), &genesis_message).await;
+        send_genesis_block(node.clone(), &genesis_block.unwrap()).await;
+    } else {
+        let blockchain_constructed = construct_blockchain(node.clone()).await;
+        if !blockchain_constructed {
+            return Err(anyhow::anyhow!("Failed to construct blockchain from peers."));
+        }
     }
 
+    node.lock().await.blockchain_locked = false;
     spawn_mining_loop(node.clone(), mining_flag.clone(), db.clone());
 
     Ok(())
 }
-
 
 pub async fn cleanup(db: DbOperations) -> Result<()> {
     let pool = db.get_pool().clone();

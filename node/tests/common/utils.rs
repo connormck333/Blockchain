@@ -5,7 +5,8 @@ use MockChain::args::mode::{Mode, ModeArgs};
 use MockChain::args::node_type::NodeType;
 use MockChain::block::Block;
 use MockChain::database::connection::Connection;
-use MockChain::database::operations::DbOperations;
+use MockChain::database::operations::{DbOperations, MockDatabaseOperations};
+use MockChain::database::structs::recipient_address::RecipientAddress;
 use MockChain::network::node::Node;
 
 static INIT: Once = Once::new();
@@ -56,4 +57,21 @@ pub fn mine_block(block: &mut Block) {
             break;
         }
     }
+}
+
+pub async fn extract_peer_addresses_from_node(node: Arc<Mutex<Node>>) -> Vec<String> {
+    let node = node.lock().await;
+    node.peers.iter().map(|peer| peer.1.address.clone()).collect()
+}
+
+pub fn create_mocked_database() -> Arc<MockDatabaseOperations> {
+    let recipient = RecipientAddress { recipient_address: "recipient".to_string() };
+    let mut mocked_db = MockDatabaseOperations::new();
+    mocked_db.expect_get_user_balance().returning(|_| Ok(1000));
+    mocked_db.expect_update_user_balance().returning(|_, _| true);
+    mocked_db.expect_get_mining_reward_at_block_index().returning(move |_| Ok(recipient.clone()));
+    mocked_db.expect_save_mining_reward().returning(|_| true);
+    mocked_db.expect_create_user_and_update_balance().returning(|_, _| ());
+
+    Arc::new(mocked_db)
 }

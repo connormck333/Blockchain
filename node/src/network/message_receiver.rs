@@ -22,6 +22,12 @@ pub async fn on_genesis_received(node: Arc<Mutex<Node>>, from: String, genesis_b
 }
 
 pub async fn on_block_received(node: Arc<Mutex<Node>>, mining_flag: Arc<AtomicBool>, validator: Arc<Validator>, from: String, block: Block) {
+    if node.lock().await.blockchain_locked {
+        // Save block & exit if blockchain is not ready
+        node.lock().await.blockchain.add_pending_block(block.clone());
+        return;
+    }
+
     for transaction in &block.transactions {
         if !validator.validate_transaction(transaction).await {
             println!("Invalid transaction received... Continuing to mine");

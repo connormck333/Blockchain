@@ -20,7 +20,8 @@ pub struct Node {
     pub id: Uuid,
     pub address: String,
     pub peers: HashMap<String, Peer>,
-    pub max_peer_chain_length: Option<ChainLength>
+    pub max_peer_chain_length: Option<ChainLength>,
+    pub blockchain_locked: bool
 }
 
 impl Node {
@@ -32,7 +33,8 @@ impl Node {
             id: Uuid::new_v4(),
             address,
             peers: HashMap::new(),
-            max_peer_chain_length: None
+            max_peer_chain_length: None,
+            blockchain_locked: true
         }
     }
 

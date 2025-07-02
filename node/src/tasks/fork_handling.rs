@@ -21,8 +21,6 @@ pub async fn wait_and_send_block_hashes(node: Arc<Mutex<Node>>) {
 
     tokio::spawn(async move {
         if let Some(max_length) = max_peer_chain_length {
-            let start_index = (blockchain.invalid_blocks[0].index - 1) as usize;
-            let end_index = (start_index + 50).min(blockchain.chain.len());
             let hashes = blockchain.chain
                 .iter()
                 .rev()
