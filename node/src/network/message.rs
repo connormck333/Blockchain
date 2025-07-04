@@ -7,7 +7,8 @@ use crate::transaction::Transaction;
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum Message {
-    PeerConnection { from: String, known_addresses: Vec<String> },
+    PeerConnectionRequest { from: String },
+    PeerConnectionResponse { from: String, known_addresses: Vec<String> },
     BlockMined { from: String, block: Block },
     TransactionCreated { from: NodeId, transaction: Transaction },
     GenesisBlock { from: String, genesis_block: Block },
