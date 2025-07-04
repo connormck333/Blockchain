@@ -73,12 +73,12 @@ pub async fn on_chain_length_request(node: Arc<Mutex<Node>>, from: String) {
         let chain_length = locked_node.blockchain.get_length();
         let message = Message::ChainLengthResponse { from: locked_node.address.clone(), length: chain_length };
         let recipient_node = locked_node.get_peer(&from);
-        if recipient_node.is_none() {
-            println!("No peer found with address: {}", from);
-            return;
-        }
 
-        send_message(&message, &mut recipient_node.unwrap().writer).await;
+        if let Some(peer) = recipient_node {
+            send_message(&message, &mut peer.writer).await;
+        } else {
+            println!("No peer found with address: {}", from);
+        }
     });
 }
 

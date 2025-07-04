@@ -43,8 +43,10 @@ pub async fn wait_and_send_block_hashes(node: Arc<Mutex<Node>>) {
 }
 
 pub async fn on_block_hashes_request(node: Arc<Mutex<Node>>, from: String, hashes: Vec<String>) {
-    let mut locked_node = node.lock().await;
-    let blockchain = locked_node.blockchain.clone();
+    let (blockchain, node_address) = {
+        let locked_node = node.lock().await;
+        (locked_node.blockchain.clone(), locked_node.address.clone())
+    };
 
     for hash in hashes {
         if let Some(overlap_block) = blockchain.chain.iter().find(|b| b.hash == hash) {
@@ -57,13 +59,12 @@ pub async fn on_block_hashes_request(node: Arc<Mutex<Node>>, from: String, hashe
                 .collect();
 
             let message = Message::BlockHashesResponse {
-                from: locked_node.address.clone(),
+                from: node_address.clone(),
                 hashes: response_hashes,
                 common_index: overlap_index
             };
 
-            let peer_response = locked_node.get_peer(&from);
-            if let Some(peer) = peer_response {
+            if let Some(peer) = node.lock().await.get_peer(&from) {
                 send_message(&message, &mut peer.writer).await;
                 return;
             }
@@ -125,14 +126,14 @@ pub async fn on_block_hashes_response(node: Arc<Mutex<Node>>, mining_flag: Arc<A
 }
 
 pub async fn send_get_blocks_request(node: Arc<Mutex<Node>>, hashes: Vec<String>, recipient: &String) -> Option<Message> {
-    let mut locked_node = node.lock().await;
+    let node_address = node.lock().await.address.clone();
+
     let message = Message::GetBlocks {
-        from: locked_node.address.clone(),
+        from: node_address,
         hashes
     };
 
-    let recipient_node = locked_node.get_peer(recipient);
-    if let Some(peer) = recipient_node {
+    if let Some(peer) = node.lock().await.get_peer(recipient) {
         return send_message_expect_response(&message, &mut peer.writer, &mut peer.reader).await;
     } else {
         println!("No peer found to send get blocks request.");

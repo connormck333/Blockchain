@@ -53,4 +53,11 @@ impl Node {
     pub fn get_peer(&mut self, address: &str) -> Option<&mut Peer> {
         self.peers.get_mut(address)
     }
+
+    pub fn get_address_blockchain(&mut self) -> (String, Blockchain) {
+        let blockchain = self.blockchain.clone();
+        let address = self.address.clone();
+
+        (address, blockchain)
+    }
 }
