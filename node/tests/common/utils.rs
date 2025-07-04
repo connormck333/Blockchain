@@ -51,6 +51,14 @@ pub fn create_join_node_args(node_address: String, peer_address: String) -> Args
     Args { node_type: full_node }
 }
 
+pub fn mine_block(block: &mut Block) {
+    loop {
+        if block.mine() {
+            break;
+        }
+    }
+}
+
 pub async fn extract_peer_addresses_from_node(node: Arc<Mutex<Node>>) -> Vec<String> {
     let node = node.lock().await;
     node.peers.iter().map(|peer| peer.1.address.clone()).collect()

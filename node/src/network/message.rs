@@ -19,7 +19,9 @@ pub enum Message {
     BlockHashesRequest { from: String, hashes: Vec<String> },
     BlockHashesResponse { from: String, hashes: Vec<String>, common_index: usize },
     GetBlocks { from: String, hashes: Vec<String> },
-    BlockList { from: String, blocks: Vec<Block> }
+    BlockList { from: String, blocks: Vec<Block> },
+    MissingBlocksRequest { from: String, indexes: Vec<u64> },
+    MissingBlocksResponse { from: String, blocks: Vec<Block> }
 }
 
 #[derive(Clone)]

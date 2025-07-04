@@ -95,11 +95,11 @@ async fn save_mining_reward(db: DbOperations, node_address: String, block_index:
     db.save_mining_reward(mining_reward).await;
 }
 
-pub fn spawn_update_balances(db: DbOperations, transactions: Vec<Transaction>) {
+pub fn spawn_update_balances(db: DbOperations, transactions: &Vec<Transaction>) {
     println!("Started update balances");
     tokio::spawn(async move {
         println!("Mined transactions count: {}", transactions.len());
-        for transaction in &transactions {
+        for transaction in transactions {
             // Decrement sender balance
             let sender_address = Wallet::derive_address_hash_from_string(&transaction.sender);
             db.create_user_and_update_balance(sender_address.clone(), -(transaction.amount as i64)).await;
