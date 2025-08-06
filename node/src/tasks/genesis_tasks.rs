@@ -30,6 +30,17 @@ pub async fn construct_blockchain(node: Arc<Mutex<Node>>) -> bool {
         } else {
             println!("Chain created successfully from peers.");
         }
+    } else {
+        let mut locked_node = node.lock().await;
+        locked_node.blockchain_locked = false;
+        println!("Adding pending blocks to blockchain... {}", locked_node.blockchain.pending_blocks.len());
+
+        let mut pending_blocks = locked_node.blockchain.pending_blocks.clone();
+        pending_blocks.sort_by_key(|b| b.index);
+        locked_node.blockchain.chain.append(&mut pending_blocks);
+        locked_node.blockchain.pending_blocks.clear();
+
+        println!("Genesis block received and blockchain initialized.");
     }
 
     true
