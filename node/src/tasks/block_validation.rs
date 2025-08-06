@@ -9,7 +9,7 @@ use crate::database::validator::Validator;
 use crate::mining_reward::MiningReward;
 use crate::mining_tasks::spawn_update_balances;
 use crate::network::message::Message;
-use crate::network::message_sender::broadcast_message;
+use crate::network::message_sender::{broadcast_message, send_message};
 use crate::network::node::Node;
 use crate::tasks::fork_handling::wait_and_send_block_hashes;
 
@@ -19,7 +19,7 @@ pub async fn on_valid_block_received(validator: Arc<Validator>, mining_flag: Arc
 
     let mining_reward = MiningReward::new(MINING_REWARD_AMOUNT, block.miner_address.clone(), block.index + MINING_REWARD_DELAY);
     validator.db.save_mining_reward(mining_reward).await;
-    spawn_update_balances(validator.db.clone(), &block.transactions);
+    spawn_update_balances(validator.db.clone(), block.transactions.clone());
     apply_mining_reward(validator.db.clone(), block.index);
 }
 
@@ -75,6 +75,51 @@ pub async fn on_missing_block_received(node: Arc<Mutex<Node>>, mining_flag: Arc<
     } else {
         println!("Continuing to mine...");
     }
+}
+
+pub async fn send_missing_blocks(node: Arc<Mutex<Node>>, indexes: Vec<u64>, from: &str) {
+    let blockchain = node.lock().await.blockchain.chain.clone();
+    let blocks_to_send: Vec<Block> = blockchain.into_iter()
+        .filter(|block| indexes.contains(&block.index))
+        .collect();
+
+    let node_address = node.lock().await.address.clone();
+    let message = Message::MissingBlocksResponse {
+        from: node_address,
+        blocks: blocks_to_send
+    };
+
+    let mut locked_node = node.lock().await;
+    let recipient_node = locked_node.get_peer(from);
+    if let Some(peer) = recipient_node {
+        send_message(&message, &mut peer.writer).await;
+    } else {
+        println!("Cannot send missing blocks. No peer found with address: {}", from);
+    }
+}
+
+pub async fn on_missing_blocks_response(node: Arc<Mutex<Node>>, mining_flag: Arc<AtomicBool>, blocks: &Vec<Block>) {
+    if blocks.is_empty() {
+        println!("No missing blocks received.");
+        return;
+    }
+    println!("Received missing blocks response...");
+
+    let mut sorted_blocks = blocks.clone();
+
+    let mut node_guard = node.lock().await;
+    let blockchain = &mut node_guard.blockchain;
+    let existing_indexes: HashSet<u64> = blockchain.chain.iter().map(|b| b.index).collect();
+
+    for block in sorted_blocks {
+        if !existing_indexes.contains(&block.index) {
+            blockchain.chain.push(block.clone());
+        }
+    }
+    blockchain.chain.sort_by_key(|b| b.index);
+
+    println!("Inserted {} missing blocks.", blocks.len());
+    mining_flag.store(true, Ordering::Relaxed);
 }
 
 fn apply_mining_reward(db: DbOperations, block_index: u64) {

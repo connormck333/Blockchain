@@ -10,6 +10,7 @@ use crate::database::validator::Validator;
 use crate::network::message::{ChainLength, Message};
 use crate::network::message_receiver::{on_block_received, on_chain_length_request, on_chain_length_response, on_genesis_received};
 use crate::network::node::Node;
+use crate::tasks::block_validation::{on_missing_blocks_response, send_missing_blocks};
 use crate::tasks::fork_handling::{get_blocks_with_hash, on_block_hashes_request, on_block_hashes_response};
 use crate::tasks::new_node_tasks::create_full_chain_response;
 use crate::tasks::peer_connection::{spawn_connect_to_many_peers, spawn_peer_connection_task, spawn_initial_peer_connection};
@@ -53,6 +54,12 @@ async fn handle_client(stream: TcpStream, node: Arc<Mutex<Node>>, validator: Arc
                     }
                     Message::BlockHashesResponse { from, hashes, common_index } => {
                         on_block_hashes_response(node.clone(), mining_flag.clone(), from, hashes, common_index).await;
+                    }
+                    Message::MissingBlocksRequest { from, indexes } => {
+                        send_missing_blocks(node.clone(), indexes, &from).await;
+                    }
+                    Message::MissingBlocksResponse { from, blocks } => {
+                        on_missing_blocks_response(node.clone(), mining_flag.clone(), &blocks).await;
                     }
                     Message::GetBlocks { from: _, hashes } => {
                         let blocks_to_send = get_blocks_with_hash(node.clone(), hashes).await;

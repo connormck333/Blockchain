@@ -40,7 +40,7 @@ pub async fn on_block_received(node: Arc<Mutex<Node>>, mining_flag: Arc<AtomicBo
             on_forked_block_received(node.clone(), mining_flag.clone()).await;
         },
         BlockValidationType::Missing => {
-            on_missing_block_received().await;
+            on_missing_block_received(node.clone(), mining_flag.clone(), &block).await;
         }
         BlockValidationType::Invalid => {
             println!("Invalid block received from {}... Continuing to mine", from);
