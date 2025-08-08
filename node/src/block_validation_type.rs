@@ -2,6 +2,5 @@
 pub enum BlockValidationType {
     Valid,
     Invalid,
-    Fork,
-    Missing
+    Fork
 }

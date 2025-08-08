@@ -6,7 +6,6 @@ use crate::constants::BLOCKCHAIN_DIFFICULTY;
 pub struct Blockchain {
     pub chain: Vec<Block>,
     pub invalid_blocks: Vec<Block>,
-    pub orphan_blocks: Vec<Block>,
     pub pending_blocks: Vec<Block>,
 }
 
@@ -15,7 +14,6 @@ impl Blockchain {
         Self {
             chain: vec![],
             invalid_blocks: vec![],
-            orphan_blocks: vec![],
             pending_blocks: vec![],
         }
     }
@@ -28,18 +26,6 @@ impl Blockchain {
         let last_block = self.chain.last().unwrap();
         println!("Checking new block validity, current length {}", self.chain.len());
 
-        if !new_block.hash.starts_with(&"0".repeat(BLOCKCHAIN_DIFFICULTY)) || new_block.hash != new_block.create_hash() {
-            return BlockValidationType::Invalid;
-        }
-
-        if new_block.index != last_block.index + 1 {
-            if new_block.index <= last_block.index {
-                return BlockValidationType::Fork;
-            }
-
-            return BlockValidationType::Missing;
-        }
-
         if new_block.previous_block_hash != last_block.hash {
             println!("Found invalid previous block hash");
             println!("Storing block in case of forked chain");
@@ -48,15 +34,15 @@ impl Blockchain {
             return BlockValidationType::Fork;
         }
 
-        BlockValidationType::Valid
+        if new_block.index == last_block.index + 1 && new_block.hash.starts_with(&"0".repeat(BLOCKCHAIN_DIFFICULTY)) && new_block.hash == new_block.create_hash() {
+            return BlockValidationType::Valid;
+        }
+
+        BlockValidationType::Invalid
     }
 
     pub fn add_pending_block(&mut self, new_block: Block) {
         self.pending_blocks.push(new_block);
-    }
-
-    pub fn add_orphan_block(&mut self, new_block: Block) {
-        self.orphan_blocks.push(new_block);
     }
 
     pub fn add_block_to_chain(&mut self, new_block: &Block) -> BlockValidationType {
