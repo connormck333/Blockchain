@@ -56,6 +56,14 @@ pub async fn extract_peer_addresses_from_node(node: Arc<Mutex<Node>>) -> Vec<Str
     node.peers.iter().map(|peer| peer.1.address.clone()).collect()
 }
 
+pub fn mine_block(block: &mut Block) {
+    loop {
+        if block.mine() {
+            break;
+        }
+    }
+}
+
 pub fn create_mocked_database() -> Arc<MockDatabaseOperations> {
     let recipient = RecipientAddress { recipient_address: "recipient".to_string() };
     let mut mocked_db = MockDatabaseOperations::new();
