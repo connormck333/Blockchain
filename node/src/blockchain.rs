@@ -115,7 +115,7 @@ mod tests {
 
         let is_valid = blockchain.is_valid_new_block(&new_block);
 
-        assert!(is_valid);
+        assert_eq!(is_valid, BlockValidationType::Valid);
     }
 
     #[test]
@@ -128,7 +128,7 @@ mod tests {
 
         let is_valid = blockchain.is_valid_new_block(&new_block);
 
-        assert!(!is_valid);
+        assert_eq!(is_valid, BlockValidationType::Invalid);
     }
 
     #[test]
@@ -141,7 +141,7 @@ mod tests {
 
         let is_valid = blockchain.is_valid_new_block(&new_block);
 
-        assert!(!is_valid);
+        assert_eq!(is_valid, BlockValidationType::Invalid);
     }
 
     #[test]
@@ -155,7 +155,7 @@ mod tests {
 
         let is_valid = blockchain.is_valid_new_block(&new_block);
 
-        assert!(!is_valid);
+        assert_eq!(is_valid, BlockValidationType::Invalid);
     }
 
     #[test]
@@ -169,7 +169,7 @@ mod tests {
 
         let is_valid = blockchain.is_valid_new_block(&new_block);
 
-        assert!(!is_valid);
+        assert_eq!(is_valid, BlockValidationType::Invalid);
     }
 
     #[test]

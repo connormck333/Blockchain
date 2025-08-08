@@ -23,7 +23,7 @@ struct HashlessBlock {
     difficulty: usize,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Block {
     pub index: u64,
     pub timestamp: i64,
@@ -111,7 +111,7 @@ mod tests {
     
     #[test]
     fn test_constructor() {
-        let new_block = Block::new(0, "previousBlockHash".to_string(), vec![], 0, "minerAddress".to_string());
+        let new_block = Block::new(0, "previousBlockHash".to_string(), vec![], "minerAddress".to_string());
 
         assert_eq!(new_block.difficulty, 0);
         assert!(new_block.transactions.is_empty());
@@ -124,7 +124,7 @@ mod tests {
 
     #[test]
     fn test_mine() {
-        let mut new_block = Block::new(0, "previousBlockHash".to_string(), vec![], 3, "minerAddress".to_string());
+        let mut new_block = Block::new(0, "previousBlockHash".to_string(), vec![], "minerAddress".to_string());
 
         new_block.mine();
 

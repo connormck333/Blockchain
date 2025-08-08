@@ -1,8 +1,6 @@
 use anyhow::Result;
-use iroh::NodeId;
 use serde::{Deserialize, Serialize};
 use crate::block::Block;
-use crate::transaction::Transaction;
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type")]
@@ -10,7 +8,6 @@ pub enum Message {
     PeerConnectionRequest { from: String },
     PeerConnectionResponse { from: String, known_addresses: Vec<String> },
     BlockMined { from: String, block: Block },
-    TransactionCreated { from: NodeId, transaction: Transaction },
     GenesisBlock { from: String, genesis_block: Block },
     FullChainRequest { from: String },
     FullChainResponse { from: String, blocks: Vec<Block> },
@@ -35,5 +32,50 @@ impl Message {
 
     pub fn to_vec(&self) -> Vec<u8> {
         serde_json::to_vec(self).expect("Failed to serialize message")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::block::Block;
+
+    #[test]
+    fn test_message_serialization_deserialization() {
+        let block = Block {
+            index: 1,
+            previous_block_hash: "prev_hash".to_string(),
+            hash: "hash".to_string(),
+            timestamp: 123456789,
+            transactions: vec![],
+            miner_address: "miner1".to_string(),
+            nonce: 42,
+            difficulty: 0,
+        };
+        let msg = Message::BlockMined { from: "node1".to_string(), block: block.clone() };
+        let serialized = serde_json::to_vec(&msg).unwrap();
+        let deserialized: Message = Message::from_bytes(&serialized).unwrap();
+        match deserialized {
+            Message::BlockMined { from, block: b } => {
+                assert_eq!(from, "node1");
+                assert_eq!(b.index, block.index);
+                assert_eq!(b.hash, block.hash);
+            },
+            _ => panic!("Deserialized to wrong variant"),
+        }
+    }
+
+    #[test]
+    fn test_chain_length_response_serialization() {
+        let msg = Message::ChainLengthResponse { from: "node2".to_string(), length: 10 };
+        let serialized = serde_json::to_vec(&msg).unwrap();
+        let deserialized: Message = Message::from_bytes(&serialized).unwrap();
+        match deserialized {
+            Message::ChainLengthResponse { from, length } => {
+                assert_eq!(from, "node2");
+                assert_eq!(length, 10);
+            },
+            _ => panic!("Deserialized to wrong variant"),
+        }
     }
 }

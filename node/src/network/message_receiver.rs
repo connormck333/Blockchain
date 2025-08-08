@@ -107,3 +107,101 @@ fn apply_mining_reward(db: DbOperations, block_index: u64) {
         db.create_user_and_update_balance(recipient_address, MINING_REWARD_AMOUNT as i64).await;
     });
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::block::Block;
+    use crate::database::operations::MockDatabaseOperations;
+    use crate::transaction::Transaction;
+
+    #[tokio::test]
+    async fn test_on_genesis_received() {
+        let node = Arc::new(Mutex::new(Node::new("test_address".to_string())));
+        let genesis_block = Block::new(0, "0".to_string(), vec![], "miner_address".to_string());
+
+        on_genesis_received(node.clone(), "test_peer".to_string(), genesis_block.clone()).await;
+
+        let locked_node = node.lock().await;
+        assert_eq!(locked_node.blockchain.get_length(), 1);
+        assert_eq!(locked_node.blockchain.chain[0], genesis_block);
+    }
+
+    #[tokio::test]
+    async fn test_on_block_received_blockchain_locked() {
+        let node = Arc::new(Mutex::new(Node::new("test_address".to_string())));
+        let mining_flag = Arc::new(AtomicBool::new(true));
+        let mut db = MockDatabaseOperations::new();
+        db.expect_save_mining_reward().returning(|_| true);
+
+        let validator = Arc::new(Validator::new(Arc::new(db)));
+        let block = Block::new(1, "0".to_string(), vec![], "miner_address".to_string());
+
+        on_block_received(node.clone(), mining_flag.clone(), validator.clone(), "test_peer".to_string(), block.clone()).await;
+
+        let locked_node = node.lock().await;
+        assert_eq!(locked_node.blockchain.get_length(), 0);
+        assert_eq!(locked_node.blockchain.pending_blocks.len(), 1);
+        assert_eq!(locked_node.blockchain.pending_blocks[0], block);
+    }
+
+    #[tokio::test]
+    async fn test_on_valid_block_received_blockchain_unlocked() {
+        let node = Arc::new(Mutex::new(Node::new("test_address".to_string())));
+        let mining_flag = Arc::new(AtomicBool::new(true));
+        let mut db = MockDatabaseOperations::new();
+        db.expect_save_mining_reward().returning(|_| true);
+
+        let validator = Arc::new(Validator::new(Arc::new(db)));
+        let block = Block::new(0, "0".to_string(), vec![], "miner_address".to_string());
+        node.lock().await.blockchain_locked = false;
+
+        on_block_received(node.clone(), mining_flag.clone(), validator.clone(), "test_peer".to_string(), block.clone()).await;
+
+        let locked_node = node.lock().await;
+        assert_eq!(locked_node.blockchain.get_length(), 1);
+        assert_eq!(locked_node.blockchain.chain[0], block);
+    }
+
+    #[tokio::test]
+    async fn test_on_invalid_block_received_blockchain_unlocked() {
+        let node = Arc::new(Mutex::new(Node::new("test_address".to_string())));
+        let mining_flag = Arc::new(AtomicBool::new(true));
+        let mut db = MockDatabaseOperations::new();
+        db.expect_save_mining_reward().returning(|_| true);
+
+        let validator = Arc::new(Validator::new(Arc::new(db)));
+        let genesis = Block::new(0, "0".to_string(), vec![], "miner_address".to_string());
+        node.lock().await.blockchain_locked = false;
+        node.lock().await.blockchain.load_starting_block(genesis.clone());
+        let block = Block::new(2, genesis.hash.clone(), vec![], "miner_address".to_string());
+
+        on_block_received(node.clone(), mining_flag.clone(), validator.clone(), "test_peer".to_string(), block).await;
+
+        let locked_node = node.lock().await;
+        assert_eq!(locked_node.blockchain.get_length(), 1);
+        assert_eq!(locked_node.blockchain.chain[0], genesis);
+    }
+
+    #[tokio::test]
+    async fn test_on_forked_block_received_blockchain_unlocked() {
+        let node = Arc::new(Mutex::new(Node::new("test_address".to_string())));
+        let mining_flag = Arc::new(AtomicBool::new(true));
+        let mut db = MockDatabaseOperations::new();
+        db.expect_save_mining_reward().returning(|_| true);
+
+        let validator = Arc::new(Validator::new(Arc::new(db)));
+        let genesis = Block::new(0, "0".to_string(), vec![], "miner_address".to_string());
+        node.lock().await.blockchain_locked = false;
+        node.lock().await.blockchain.load_starting_block(genesis.clone());
+        let block = Block::new(1, "invalid_hash".to_string(), vec![], "miner_address".to_string());
+
+        on_block_received(node.clone(), mining_flag.clone(), validator.clone(), "test_peer".to_string(), block.clone()).await;
+
+        let locked_node = node.lock().await;
+        assert_eq!(locked_node.blockchain.invalid_blocks.len(), 1);
+        assert_eq!(locked_node.blockchain.invalid_blocks[0], block);
+        assert_eq!(locked_node.blockchain.chain.len(), 1);
+        assert_eq!(locked_node.blockchain.chain[0], genesis);
+    }
+}
