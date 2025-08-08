@@ -24,7 +24,6 @@ pub async fn on_genesis_received(node: Arc<Mutex<Node>>, from: String, genesis_b
 pub async fn on_block_received(node: Arc<Mutex<Node>>, mining_flag: Arc<AtomicBool>, validator: Arc<Validator>, from: String, block: Block) {
     if node.lock().await.blockchain_locked {
         // Save block & exit if blockchain is not ready
-        println!("Block received while blockchain is locked... Adding to pending blocks");
         node.lock().await.blockchain.add_pending_block(block.clone());
         return;
     }
