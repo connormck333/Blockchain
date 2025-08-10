@@ -41,6 +41,24 @@ impl TransactionPanel {
                         .code_editor()
                         .lock_focus(true)
                 );
+                ui.add_space(10.0);
+                ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
+                    ui.add_space(10.0);
+                    if ui.button("Send transaction").clicked() {
+                        self.send_transaction(json.clone());
+                    }
+                });
             });
+    }
+
+    fn send_transaction(&self, mut transaction_json: String) {
+        transaction_json += "\n";
+        let response = reqwest::blocking::Client::new()
+            .post("http://localhost:3000/transaction")
+            .header("Content-Type", "application/json")
+            .body(transaction_json)
+            .send();
+
+        println!("{:?}", response);
     }
 }
