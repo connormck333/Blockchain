@@ -4,8 +4,7 @@ use crate::wallet::Wallet;
 pub struct KeysModal {
     pub public_key: String,
     pub private_key: String,
-    pub address: String,
-    visible: bool
+    pub address: String
 }
 
 impl Default for KeysModal {
@@ -13,8 +12,7 @@ impl Default for KeysModal {
         Self {
             private_key: "".to_string(),
             public_key: "".to_string(),
-            address: "".to_string(),
-            visible: false
+            address: "".to_string()
         }
     }
 }

@@ -1,4 +1,3 @@
-use std::str::FromStr;
 use chrono::Utc;
 use secp256k1::ecdsa::Signature;
 use serde::{Deserialize, Serialize};
@@ -6,7 +5,7 @@ use serde_json::to_string;
 use sha2::{Digest, Sha256};
 use hex::encode;
 
-#[derive(PartialEq, Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Transaction {
     pub sender: String,
     pub recipient: String,

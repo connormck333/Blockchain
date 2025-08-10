@@ -68,14 +68,6 @@ impl Wallet {
         transaction.signature = Some(secp.sign_ecdsa(message, &self.private_key));
     }
 
-    pub fn verify_signature(&self, transaction: &Transaction) -> bool {
-        let secp = Secp256k1::verification_only();
-        let tx_hash = transaction.hash();
-        let message = Message::from_digest(tx_hash);
-
-        secp.verify_ecdsa(message, &transaction.signature.unwrap(), &self.public_key).is_ok()
-    }
-
     pub fn get_public_key(&self) -> String {
         hex::encode(self.public_key.serialize())
     }
