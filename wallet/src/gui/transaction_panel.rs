@@ -1,12 +1,17 @@
 use eframe::egui;
+use reqwest::blocking::Response;
 use serde_json::json;
 use crate::transaction::Transaction;
 
-pub struct TransactionPanel;
+pub struct TransactionPanel {
+    transaction_response: Option<String>
+}
 
 impl Default for TransactionPanel {
     fn default() -> Self {
-        Self
+        Self {
+            transaction_response: None
+        }
     }
 }
 
@@ -47,11 +52,15 @@ impl TransactionPanel {
                     if ui.button("Send transaction").clicked() {
                         self.send_transaction(json.clone(), request_endpoint);
                     }
+                    if self.transaction_response.is_some() {
+                        ui.add_space(5.0);
+                        ui.label(self.transaction_response.clone().unwrap());
+                    }
                 });
             });
     }
 
-    fn send_transaction(&self, mut transaction_json: String, request_endpoint: &str) {
+    fn send_transaction(&mut self, mut transaction_json: String, request_endpoint: &str) {
         let mut endpoint: String = request_endpoint.to_string();
         endpoint.push_str("/transaction");
         transaction_json += "\n";
@@ -62,6 +71,15 @@ impl TransactionPanel {
             .body(transaction_json)
             .send();
 
-        println!("{:?}", response);
+        let body = Self::get_body_from_response(response);
+        self.transaction_response = Some(body);
+    }
+
+    fn get_body_from_response(response: reqwest::Result<Response>) -> String {
+        if let Ok(resp) = response {
+            return resp.text().unwrap_or_else(|err| "Error reading response body: ".to_string() + &err.to_string())
+        }
+
+        "Error sending request".to_string()
     }
 }
