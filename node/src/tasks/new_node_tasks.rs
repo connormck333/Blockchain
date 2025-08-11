@@ -1,9 +1,9 @@
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use crate::block::Block;
+use crate::chain::block::Block;
 use crate::network::message::Message;
 use crate::network::message_sender::send_message_expect_response;
-use crate::network::node::Node;
+use crate::node::Node;
 
 pub async fn create_full_chain_response(node: Arc<Mutex<Node>>) -> Message {
     let chain = node.lock().await.blockchain.chain.clone();

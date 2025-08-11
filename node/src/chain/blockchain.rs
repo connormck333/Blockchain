@@ -1,5 +1,5 @@
-use crate::block::Block;
-use crate::block_validation_type::BlockValidationType;
+use crate::chain::block::Block;
+use crate::chain::block_validation_type::BlockValidationType;
 use crate::constants::BLOCKCHAIN_DIFFICULTY;
 
 #[derive(Clone)]

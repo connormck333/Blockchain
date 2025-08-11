@@ -7,7 +7,7 @@ use MockChain::block::Block;
 use MockChain::database::connection::Connection;
 use MockChain::database::operations::{DbOperations, MockDatabaseOperations};
 use MockChain::database::structs::recipient_address::RecipientAddress;
-use MockChain::network::node::Node;
+use MockChain::node::Node;
 
 static INIT: Once = Once::new();
 

@@ -1,15 +1,15 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::Mutex;
-use crate::block::Block;
+use crate::chain::block::Block;
 use crate::constants::{MINING_REWARD_AMOUNT, MINING_REWARD_DELAY};
 use crate::database::operations::DbOperations;
-use crate::mining_reward::MiningReward;
+use crate::mining::mining_reward::MiningReward;
 use crate::network::message::Message;
 use crate::network::message_sender::broadcast_message;
-use crate::network::node::Node;
-use crate::transaction::Transaction;
-use crate::wallet::Wallet;
+use crate::node::Node;
+use crate::chain::transaction::Transaction;
+use crate::chain::wallet::Wallet;
 
 pub fn spawn_mining_loop(
     node: Arc<Mutex<Node>>,

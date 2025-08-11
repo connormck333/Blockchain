@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use crate::block::Block;
+use crate::chain::block::Block;
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type")]
@@ -38,7 +38,6 @@ impl Message {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::block::Block;
 
     #[test]
     fn test_message_serialization_deserialization() {

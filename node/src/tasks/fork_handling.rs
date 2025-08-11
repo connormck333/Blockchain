@@ -1,10 +1,10 @@
 use std::sync::{atomic, Arc};
 use std::sync::atomic::AtomicBool;
 use tokio::sync::Mutex;
-use crate::block::Block;
+use crate::chain::block::Block;
 use crate::network::message::Message;
 use crate::network::message_sender::{send_message, send_message_expect_response};
-use crate::network::node::Node;
+use crate::node::Node;
 
 pub async fn wait_and_send_block_hashes(node: Arc<Mutex<Node>>) {
     // Sleep for 10 seconds to allow time for length responses to be received

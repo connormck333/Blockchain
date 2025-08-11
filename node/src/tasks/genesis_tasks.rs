@@ -1,10 +1,10 @@
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
-use crate::block::Block;
+use crate::chain::block::Block;
 use crate::network::message::Message;
 use crate::network::message_sender::broadcast_message;
-use crate::network::node::Node;
+use crate::node::Node;
 use crate::tasks::new_node_tasks::request_full_chain;
 
 pub async fn send_genesis_block(node: Arc<Mutex<Node>>, genesis_block: &Block) {

@@ -6,7 +6,7 @@ use crate::constants::MINING_REWARD_AMOUNT;
 use crate::database::operations::DatabaseOperations;
 use crate::database::structs::recipient_address::RecipientAddress;
 use crate::database::structs::user_balance::UserBalance;
-use crate::mining_reward::MiningReward;
+use crate::mining::mining_reward::MiningReward;
 
 pub struct Connection {
     pub pool: Pool<Postgres>,

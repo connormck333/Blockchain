@@ -2,16 +2,16 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use tokio::sync::Mutex;
-use crate::block::Block;
-use crate::block_validation_type::BlockValidationType;
+use crate::chain::block::Block;
+use crate::chain::block_validation_type::BlockValidationType;
 use crate::constants::{MINING_REWARD_AMOUNT, MINING_REWARD_DELAY};
 use crate::database::operations::DbOperations;
 use crate::database::validator::Validator;
-use crate::mining_reward::MiningReward;
-use crate::mining_tasks::spawn_update_balances;
+use crate::mining::mining_reward::MiningReward;
+use crate::mining::mining_tasks::spawn_update_balances;
 use crate::network::message::{ChainLength, Message};
 use crate::network::message_sender::{broadcast_message, send_message};
-use crate::network::node::Node;
+use crate::node::Node;
 use crate::tasks::fork_handling::wait_and_send_block_hashes;
 
 pub async fn on_genesis_received(node: Arc<Mutex<Node>>, from: String, genesis_block: Block) {
@@ -111,9 +111,7 @@ fn apply_mining_reward(db: DbOperations, block_index: u64) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::block::Block;
     use crate::database::operations::MockDatabaseOperations;
-    use crate::transaction::Transaction;
 
     #[tokio::test]
     async fn test_on_genesis_received() {

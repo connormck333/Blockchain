@@ -3,7 +3,7 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::sync::Mutex;
 use crate::network::message::Message;
-use crate::network::node::Node;
+use crate::node::Node;
 
 pub async fn broadcast_message(node: Arc<Mutex<Node>>, message: &Message) {
     let mut node = node.lock().await;

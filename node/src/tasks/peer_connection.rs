@@ -4,7 +4,7 @@ use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use crate::network::message::Message;
 use crate::network::message_sender::send_message;
-use crate::network::node::Node;
+use crate::node::Node;
 
 pub fn spawn_connect_to_many_peers(node: Arc<Mutex<Node>>, peer_addresses: Vec<String>) {
     tokio::spawn(async move {

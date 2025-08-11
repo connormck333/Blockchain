@@ -1,6 +1,6 @@
 use crate::database::operations::DbOperations;
-use crate::transaction::Transaction;
-use crate::wallet::Wallet;
+use crate::chain::transaction::Transaction;
+use crate::chain::wallet::Wallet;
 
 pub struct Validator {
     pub db: DbOperations

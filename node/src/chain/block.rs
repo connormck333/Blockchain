@@ -5,7 +5,7 @@ use serde::{Serialize, Deserialize};
 use serde_json::to_string;
 use sha2::{Digest, Sha256};
 use crate::constants::BLOCKCHAIN_DIFFICULTY;
-use crate::transaction::Transaction;
+use crate::chain::transaction::Transaction;
 
 /*
     Each block in the blockchain is a digital container

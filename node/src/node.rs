@@ -3,13 +3,13 @@ use std::sync::Arc;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::sync::Mutex;
 use uuid::Uuid;
-use crate::block::Block;
-use crate::block_validation_type::BlockValidationType;
-use crate::blockchain::Blockchain;
+use crate::chain::block::Block;
+use crate::chain::block_validation_type::BlockValidationType;
+use crate::chain::blockchain::Blockchain;
 use crate::network::message::ChainLength;
 use crate::network::peer::Peer;
-use crate::transaction::Transaction;
-use crate::wallet::Wallet;
+use crate::chain::transaction::Transaction;
+use crate::chain::wallet::Wallet;
 
 pub type Mempool = Arc<Mutex<Vec<Transaction>>>;
 

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use mockall::automock;
 use crate::database::structs::recipient_address::RecipientAddress;
-use crate::mining_reward::MiningReward;
+use crate::mining::mining_reward::MiningReward;
 
 pub type DbOperations = Arc<dyn DatabaseOperations + Send + Sync>;
 

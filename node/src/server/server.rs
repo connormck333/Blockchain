@@ -5,10 +5,10 @@ use axum::extract::State;
 use axum::routing::post;
 use tokio::net::TcpListener;
 use crate::database::validator::Validator;
-use crate::network::node::Mempool;
+use crate::node::Mempool;
 use crate::server::request::transaction::TransactionRequest;
-use crate::transaction::Transaction;
-use crate::wallet::Wallet;
+use crate::chain::transaction::Transaction;
+use crate::chain::wallet::Wallet;
 
 #[derive(Clone)]
 struct ServerState {
