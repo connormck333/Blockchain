@@ -76,8 +76,6 @@ impl Connection {
         let db_password = std::env::var("POSTGRES_PASSWORD").expect("Database password not set as environment variable");
         let db_host = std::env::var("POSTGRES_HOST").expect("Database host not set as environment variable");
 
-        println!("Database url: postgresql://{}:{}@{}/{}", db_username, db_password, db_host, db_name);
-
         format!("postgresql://{}:{}@{}/{}", db_username, db_password, db_host, db_name)
     }
 
@@ -100,7 +98,7 @@ impl Connection {
         .await;
 
         if db_response.is_err() {
-            println!("DB ERROR: {}", db_response.unwrap_err());
+            println!("There was an error adding new user to the database: {}", db_response.unwrap_err());
             return false
         }
 
@@ -117,11 +115,9 @@ impl Connection {
 
         match balance_retrieved {
             Ok(user_balance) => {
-                println!("User balance found: {}", user_balance.balance);
                 Ok(user_balance.balance as u64)
             },
-            Err(e) => {
-                println!("{}", e.to_string());
+            Err(_) => {
                 Err(anyhow::anyhow!("User not found"))
             }
         }
@@ -173,7 +169,7 @@ impl Connection {
         .await;
 
         if db_response.is_err() {
-            println!("ERROR when saving mining reward: {}", db_response.unwrap_err());
+            println!("There was an error when saving mining reward: {}", db_response.unwrap_err());
             return false
         }
 
@@ -181,7 +177,6 @@ impl Connection {
     }
 
     pub async fn get_mining_reward_at_block_index(&self, block_index: u64) -> anyhow::Result<RecipientAddress> {
-        println!("Getting mining reward at block index: {}", block_index);
         let reward_retrieved: Result<RecipientAddress, Error> = sqlx::query_as(
             "SELECT recipient_address FROM rewards WHERE block_unlocked_at = $1"
         )
@@ -192,7 +187,7 @@ impl Connection {
         match reward_retrieved {
             Ok(address) => Ok(address),
             Err(e) => {
-                println!("ERROR retrieving mining reward: {}", e);
+                println!("There was an error retrieving mining reward: {}", e);
                 Err(anyhow::anyhow!("Mining reward not found"))
             }
         }

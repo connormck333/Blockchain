@@ -72,7 +72,6 @@ async fn send_known_addresses(node: Arc<Mutex<Node>>, recipient: &mut OwnedWrite
     };
 
     send_message(&message, recipient).await;
-    println!("Sent known addresses to peer");
 }
 
 async fn send_peer_connection_request(node: Arc<Mutex<Node>>, recipient: &mut OwnedWriteHalf) {

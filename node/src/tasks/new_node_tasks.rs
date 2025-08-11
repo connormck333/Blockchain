@@ -29,7 +29,6 @@ pub async fn request_full_chain(node: Arc<Mutex<Node>>, peer_address: &String) -
             match message {
                 Message::FullChainResponse { from, blocks } => {
                     println!("Received full chain from {} with {} blocks", from, blocks.len());
-                    println!("Merging with pending blocks {}...", locked_node.blockchain.pending_blocks.len());
                     locked_node.blockchain.chain = merge_pending_and_received_blocks(
                         &blocks,
                         locked_node.blockchain.pending_blocks.clone()

@@ -17,8 +17,8 @@ use crate::tasks::fork_handling::wait_and_send_block_hashes;
 pub async fn on_genesis_received(node: Arc<Mutex<Node>>, from: String, genesis_block: Block) {
     tokio::time::sleep(Duration::from_millis(1000)).await;
     node.lock().await.blockchain.load_starting_block(genesis_block);
-    println!("> Starting block received from {}", from);
-    println!("> Starting mining...");
+    println!("Starting block received from {}", from);
+    println!("Starting mining...");
 }
 
 pub async fn on_block_received(node: Arc<Mutex<Node>>, mining_flag: Arc<AtomicBool>, validator: Arc<Validator>, from: String, block: Block) {

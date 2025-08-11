@@ -78,7 +78,7 @@ async fn send_response(recipient: &mut OwnedWriteHalf, response: Message) {
     response_bytes.push(b'\n');
 
     if let Err(e) = recipient.write_all(&response_bytes).await {
-        println!("Failed to send blocks: {:?}", e);
+        println!("Failed to send response: {:?}", e);
     }
 }
 

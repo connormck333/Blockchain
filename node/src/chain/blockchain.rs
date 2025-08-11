@@ -24,7 +24,6 @@ impl Blockchain {
         }
 
         let last_block = self.chain.last().unwrap();
-        println!("Checking new block validity, current length {}", self.chain.len());
 
         if new_block.previous_block_hash != last_block.hash {
             println!("Found invalid previous block hash");
@@ -55,7 +54,6 @@ impl Blockchain {
     }
 
     pub fn add_block_without_validation(&mut self, new_block: Block) {
-        println!("> Block added by this node");
         self.chain.push(new_block);
     }
 

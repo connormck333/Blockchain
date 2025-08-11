@@ -41,7 +41,6 @@ pub fn spawn_mining_loop(
                 spawn_update_balances(db.clone(), transactions);
             } else {
                 if node.lock().await.blockchain.invalid_blocks.len() < 5 {
-                    println!("Resuming mining...");
                     mining_flag.store(true, Ordering::Relaxed);
                 }
             }
@@ -73,7 +72,6 @@ fn mine_block(
     cancel_flag: Arc<AtomicBool>,
     node_address: String
 ) -> Option<Block> {
-    // println!("-----> Transaction count picked up for mining: {}", transactions.len());
     let mut block = Block::new(block_index, previous_hash, transactions, node_address);
 
     while cancel_flag.load(Ordering::Relaxed) == true {
@@ -96,9 +94,7 @@ async fn save_mining_reward(db: DbOperations, node_address: String, block_index:
 }
 
 pub fn spawn_update_balances(db: DbOperations, transactions: Vec<Transaction>) {
-    println!("Started update balances");
     tokio::spawn(async move {
-        println!("Mined transactions count: {}", transactions.len());
         for transaction in &transactions {
             // Decrement sender balance
             let sender_address = Wallet::derive_address_hash_from_string(&transaction.sender);

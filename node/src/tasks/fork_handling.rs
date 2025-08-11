@@ -37,7 +37,7 @@ pub async fn wait_and_send_block_hashes(node: Arc<Mutex<Node>>) {
                 println!("No peer found to send block hashes request.");
             }
         } else {
-            println!("No peer chain lengths received.");
+            println!("No peer chain length responses received.");
         }
     });
 }
@@ -50,7 +50,6 @@ pub async fn on_block_hashes_request(node: Arc<Mutex<Node>>, from: String, hashe
 
     for hash in hashes {
         if let Some(overlap_block) = blockchain.chain.iter().find(|b| b.hash == hash) {
-            println!("Overlap found with block {} from {}", overlap_block.index, from);
 
             let overlap_index = overlap_block.index as usize;
             let response_hashes = blockchain.chain[overlap_index..]
@@ -70,8 +69,6 @@ pub async fn on_block_hashes_request(node: Arc<Mutex<Node>>, from: String, hashe
             }
         }
     }
-
-    println!("No overlap found with received hashes from {}", from);
 }
 
 pub async fn on_block_hashes_response(node: Arc<Mutex<Node>>, mining_flag: Arc<AtomicBool>, from: String, hashes: Vec<String>, common_index: usize) {
@@ -106,8 +103,6 @@ pub async fn on_block_hashes_response(node: Arc<Mutex<Node>>, mining_flag: Arc<A
                     if block.index == last_index + 1 {
                         blockchain.push(block);
                         last_index += 1;
-                    } else {
-                        println!("Skipping block {} as it is not the next in sequence after {}", block.index, last_index);
                     }
                 }
 

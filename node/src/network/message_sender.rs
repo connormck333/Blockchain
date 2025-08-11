@@ -14,7 +14,6 @@ pub async fn broadcast_message(node: Arc<Mutex<Node>>, message: &Message) {
 }
 
 pub async fn send_message(message: &Message, writer: &mut OwnedWriteHalf) {
-    println!("Sending message to peer");
     let mut msg_bytes = message.to_vec();
     msg_bytes.push(b'\n');
     if let Err(e) = writer.write_all(&msg_bytes).await {
