@@ -4,14 +4,16 @@ use crate::wallet::Wallet;
 
 pub struct TransactionForm {
     receiver_address: String,
-    amount: String
+    amount: String,
+    pub endpoint: String
 }
 
 impl Default for TransactionForm {
     fn default() -> Self {
         Self {
             receiver_address: "".to_string(),
-            amount: "".to_string()
+            amount: "".to_string(),
+            endpoint: "http://localhost:3000".to_string()
         }
     }
 }
@@ -40,6 +42,13 @@ impl TransactionForm {
 
                 *current_transaction = Some(new_tx);
             }
+
+            ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
+                ui.add_space(10.0);
+                ui.text_edit_singleline(&mut self.endpoint);
+                ui.add_space(1.0);
+                ui.label("Request URL");
+            });
         });
     }
 }

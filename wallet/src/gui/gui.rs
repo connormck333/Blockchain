@@ -45,7 +45,7 @@ impl eframe::App for Gui {
                         self.transaction_form.show(ui, &mut self.current_transaction, self.wallet.clone().unwrap());
                     }
 
-                    self.transaction_panel.show(ctx, &self.current_transaction);
+                    self.transaction_panel.show(ctx, &self.current_transaction, &self.transaction_form.endpoint);
 
                     if self.keys_modal_visible {
                         self.keys_modal.show(ctx, &mut self.keys_modal_visible, &mut self.wallet);

@@ -11,7 +11,7 @@ impl Default for TransactionPanel {
 }
 
 impl TransactionPanel {
-    pub fn show(&mut self, ctx: &egui::Context, current_transaction: &Option<Transaction>) {
+    pub fn show(&mut self, ctx: &egui::Context, current_transaction: &Option<Transaction>, request_endpoint: &str) {
         let json = match current_transaction {
             Some(tx) => {
                 let signature = tx.signature.unwrap().to_string();
@@ -45,16 +45,19 @@ impl TransactionPanel {
                 ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
                     ui.add_space(10.0);
                     if ui.button("Send transaction").clicked() {
-                        self.send_transaction(json.clone());
+                        self.send_transaction(json.clone(), request_endpoint);
                     }
                 });
             });
     }
 
-    fn send_transaction(&self, mut transaction_json: String) {
+    fn send_transaction(&self, mut transaction_json: String, request_endpoint: &str) {
+        let mut endpoint: String = request_endpoint.to_string();
+        endpoint.push_str("/transaction");
         transaction_json += "\n";
+
         let response = reqwest::blocking::Client::new()
-            .post("http://localhost:3000/transaction")
+            .post(endpoint)
             .header("Content-Type", "application/json")
             .body(transaction_json)
             .send();
