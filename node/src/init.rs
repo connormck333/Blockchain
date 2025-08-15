@@ -33,7 +33,8 @@ pub async fn test_init(
         Mode::JOIN { peer_address, .. } => Some(peer_address.clone()),
     };
 
-    start_peer_connection(node.clone(), validator.clone(), mining_flag.clone(), peer_address).await;
+    let node_address = node.lock().await.address.clone();
+    start_peer_connection(node.clone(), validator.clone(), mining_flag.clone(), node_address, peer_address).await;
 
     start_blockchain(
         mining_flag.clone(),

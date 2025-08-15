@@ -10,9 +10,11 @@ pub struct ModeArgs {
 pub enum Mode {
     OPEN {
         node_address: String,
+        external_address: String
     },
     JOIN {
         node_address: String,
-        peer_address: String
+        peer_address: String,
+        external_address: String
     }
 }
