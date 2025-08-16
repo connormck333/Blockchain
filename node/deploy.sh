@@ -21,11 +21,12 @@ helm upgrade --install blockchain-open ./deployment/open \
 echo "Waiting for open node to be ready..."
 kubectl wait --for=condition=ready pod -l role=open --timeout=60s
 
+sleep 15
+
 # Deploy Join Nodes with ticket
-for i in $(seq 0 14); do
-  port=$((8080 + i))
-  helm upgrade --install blockchain-join-$port ./deployment/join \
-    --set db.username="$POSTGRES_USERNAME" \
-    --set db.password="$POSTGRES_PASSWORD" \
-    --set host_url="0.0.0.0:$port"
-done
+helm upgrade --install blockchain-join ./deployment/join \
+  --set db.username="$POSTGRES_USERNAME" \
+  --set db.password="$POSTGRES_PASSWORD" \
+  --set port="8081" \
+  --set replicas=15 \
+  --set existing_node_host_url="blockchain-open:8080"

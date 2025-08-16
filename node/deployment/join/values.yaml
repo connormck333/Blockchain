@@ -1,5 +1,7 @@
 replicas: 1
 host_url: ""
+existing_node_host_url: ""
+port: ""
 db:
   username: ""
   password: ""

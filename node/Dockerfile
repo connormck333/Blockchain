@@ -17,10 +17,10 @@ FROM debian:bullseye-slim
 
 RUN useradd -m appuser
 
-COPY --from=builder /usr/src/app/target/release/Blockchain /usr/local/bin/blockchain
+COPY --from=builder /usr/src/app/target/release/MockChain /usr/local/bin/mockchain
 
-RUN chown appuser:appuser /usr/local/bin/blockchain
+RUN chown appuser:appuser /usr/local/bin/mockchain
 
 USER appuser
 
-ENTRYPOINT ["blockchain"]
+ENTRYPOINT ["mockchain"]

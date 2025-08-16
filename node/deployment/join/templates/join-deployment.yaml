@@ -1,5 +1,5 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: {{ .Release.Name }}
   labels:
@@ -10,6 +10,7 @@ metadata:
     meta.helm.sh/release-name: blockchain-join
     meta.helm.sh/release-namespace: default
 spec:
+  serviceName: {{ .Release.Name }}
   replicas: {{ .Values.replicas }}
   selector:
     matchLabels:
@@ -24,8 +25,13 @@ spec:
       containers:
         - name: blockchain
           image: blockchain:latest
-          args: ["miner", "join", "{{ .Values.host_url }}", "127.0.0.1:8080"]
           imagePullPolicy: Never
+          args:
+            - "miner"
+            - "join"
+            - "0.0.0.0:{{ .Values.port }}"
+            - "{{ .Values.existing_node_host_url }}"
+            - "{{ .Release.Name }}.default.svc.cluster.local:{{ .Values.port }}"
           env:
             - name: POSTGRES_USERNAME
               value: {{ .Values.db.username | quote }}

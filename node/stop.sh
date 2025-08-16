@@ -2,11 +2,7 @@
 
 set -e
 
-for port in $(seq 8080 8094); do
-  release="blockchain-join-$port"
-  echo "Uninstalling $release..."
-  helm uninstall "$release" || echo "$release not found"
-done
+kubectl delete statefulset blockchain-join
 
 kubectl delete deployment blockchain-open
 
