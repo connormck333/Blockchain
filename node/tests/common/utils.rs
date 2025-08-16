@@ -3,7 +3,7 @@ use tokio::sync::Mutex;
 use MockChain::args::args::Args;
 use MockChain::args::mode::{Mode, ModeArgs};
 use MockChain::args::node_type::NodeType;
-use MockChain::block::Block;
+use MockChain::chain::block::Block;
 use MockChain::database::connection::Connection;
 use MockChain::database::operations::{DbOperations, MockDatabaseOperations};
 use MockChain::database::structs::recipient_address::RecipientAddress;

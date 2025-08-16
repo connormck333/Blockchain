@@ -6,5 +6,5 @@ mod constants;
 pub mod init;
 mod tasks;
 pub mod node;
-mod chain;
+pub mod chain;
 mod mining;
