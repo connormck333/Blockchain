@@ -46,8 +46,10 @@ cargo build --release
 ### 4. Run the opening node
 - Host: the address that the node will listen on. E.g: http://localhost
 - Port: the port that the node will listen on. E.g: 8080
+- External IP: the address that other nodes will use to connect to this node.
+- External Port: the port that other nodes will use to connect to this node.
 ```bash
-cargo run full open <host>:<port>
+cargo run full open <host>:<port> <external_ip>:<external_port>
 ```
 
 ### 5. Run miner nodes
@@ -55,8 +57,10 @@ cargo run full open <host>:<port>
 - Port: the port that the node will listen on. E.g: 8081
 - Existing Node Host: the address of an existing node to join. E.g: http://127.0.0.1
 - Existing Node Port: the port of an existing node to join. E.g: 8080
+- External IP: the address that other nodes will use to connect to this node.
+- External Port: the port that other nodes will use to connect to this node.
 ```bash
-cargo run miner join <host>:<port> <existing_node_host>:<existing_node_port>
+cargo run miner join <host>:<port> <existing_node_host>:<existing_node_port> <external_ip>:<external_port>
 ```
 
 ### 6. Build and run the wallet GUI
