@@ -3,7 +3,7 @@ A simple blockchain implemented from scratch in Rust inspired by Bitcoin.
 This project is a learning exercise to understand the basic concepts of blockchain technology, including blocks, transactions, and consensus mechanisms.
 
 ## Features
-- Proof of Work (PoW) consensus mechanism
+- Proof of Work (PoW)
 - Peer to peer communication
 - Peer discovery
 - Fork detection and resolution
